@@ -1,0 +1,18 @@
+# ===== 暫存 / 開發用檔案 =====
+nul
+temp_*.png
+smoke-test.js
+toasty-beacon-newton.md
+
+# ===== 原始素材包（遊戲未使用，僅 index.html + assets/ 是成品）=====
+0x72 – 16x16 DungeonTileset II/
+background/
+Humble Gift - Paper UI System/
+Legacy Collection/
+monogram/
+new/
+Pixel Crawler - Free Pack 2.11/
+rvros – Animated Pixel Adventurer/
+
+# ===== WorkBuddy 內部狀態 =====
+.workbuddy/

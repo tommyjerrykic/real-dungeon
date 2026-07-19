@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>實數地下城</title>
+<style>
+  :root {
+    --bg: #0d0d12;
+    --panel: #1a1a24;
+    --panel2: #22222e;
+    --border: #3b3b4e;
+    --accent: #ffcc00;
+    --hp: #ff4d4d;
+    --text: #f0f0f0;
+    --muted: #a0a0b0;
+    --key: #333344;
+    --key-active: #4a4a5e;
+    --correct: #4caf50;
+    --wrong: #e53935;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: 'Courier New', Courier, monospace; overflow: hidden; touch-action: manipulation; }
+  canvas, img { image-rendering: pixelated; image-rendering: crisp-edges; }
+  button { font-family: inherit; }
+
+  .screen {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(13,13,18,0.96); padding: 24px; text-align: center;
+    overflow-y: auto;
+  }
+  .screen h1 { font-size: 2.2rem; margin: 0 0 16px; color: var(--accent); letter-spacing: 2px; }
+  .screen p { max-width: 560px; line-height: 1.7; color: var(--muted); margin: 6px 0; }
+  .btn {
+    margin-top: 22px; padding: 14px 32px; font-size: 1.2rem; font-weight: bold;
+    border: 3px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer;
+    border-radius: 6px; transition: background .15s, color .15s;
+  }
+  .btn:hover, .btn:active { background: var(--accent); color: #000; }
+  .btn.mini { margin-top: 14px; padding: 8px 20px; font-size: 0.95rem; }
+  #topbar { position: fixed; top: 10px; right: 10px; z-index: 999; display: flex; gap: 8px; }
+  .top-btn {
+    width: 42px; height: 42px; font-size: 1.15rem; line-height: 1;
+    border: 2px solid var(--border); border-radius: 8px; background: rgba(20,20,30,0.85);
+    color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .top-btn:hover { background: var(--accent); color: #000; }
+  .top-btn.active { border-color: var(--accent); color: var(--accent); }
+  .ctrl-label { font-size: 0.85rem; color: var(--muted); margin: 12px 0 6px; text-align: left; }
+  .ctrl-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .opt { padding: 8px 14px; font-size: 0.9rem; border: 2px solid var(--border); background: #2a2a38; color: var(--text); border-radius: 6px; cursor: pointer; touch-action: manipulation; }
+  .opt.selected { border-color: var(--accent); color: var(--accent); background: #33331f; }
+  #start-screen { background: transparent; }
+  #title-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  #start-screen > *:not(#title-canvas) { position: relative; z-index: 1; }
+  #start-screen h1 { text-shadow: 0 2px 8px #000, 0 0 20px rgba(255,204,0,0.4); }
+
+  #game-screen { display: none; flex: 1; height: 100vh; }
+  #dungeon {
+    flex: 1.6; min-width: 0; position: relative; background: #0f0f18;
+    overflow: hidden;
+  }
+  #dungeon-canvas { display: block; width: 100%; height: 100%; }
+
+  #speech-bubble {
+    position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
+    background: #fff; color: #000; padding: 10px 16px; border-radius: 10px;
+    font-size: 1.25rem; font-weight: bold; max-width: 80%; text-align: center;
+    display: none; pointer-events: none; box-shadow: 0 4px 0 #999;
+  }
+  #speech-bubble::after {
+    content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+    border: 10px solid transparent; border-top-color: #fff;
+  }
+  .math-rad { font-size: 1.35em; }
+
+  #right-panel {
+    flex: 1; min-width: 320px; max-width: 460px; display: flex; flex-direction: column;
+    background: var(--panel); border-left: 4px solid var(--border);
+  }
+  #status-area {
+    flex: 0 0 auto; padding: 12px; border-bottom: 4px solid var(--border); background: var(--panel2);
+  }
+  #hp-bar { margin-bottom: 10px; }
+  #hp-bar .label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; color: var(--muted); }
+  #hp-fill { height: 14px; background: #333; border-radius: 3px; overflow: hidden; border: 1px solid #555; }
+  #hp-inner { height: 100%; width: 100%; background: linear-gradient(90deg, #ff6666, #cc0000); transition: width .25s; }
+  #progress-row { display: none; }
+  #items-row { display: flex; gap: 10px; margin-top: 8px; }
+  .item-slot {
+    flex: 1; background: #2a2a38; border: 2px solid var(--border); border-radius: 6px;
+    padding: 6px; text-align: center; cursor: pointer; user-select: none; position: relative;
+    touch-action: manipulation;
+  }
+  .item-slot:active { background: #3a3a4e; }
+  .item-slot .icon { font-size: 1.5rem; line-height: 1; }
+  .item-slot .name { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .item-slot .count {
+    position: absolute; top: -6px; right: -6px; background: var(--accent); color: #000;
+    font-size: 0.75rem; font-weight: bold; border-radius: 50%; width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .item-slot:disabled, .item-slot.disabled { opacity: 0.4; cursor: default; }
+
+  #keyboard-area { flex: 1; display: flex; flex-direction: column; padding: 10px; min-height: 0; }
+  #answer-preview {
+    background: #111; border: 2px solid var(--border); border-radius: 6px; padding: 12px;
+    font-size: 1.5rem; text-align: center; min-height: 54px; margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: center; letter-spacing: 1px;
+  }
+  #answer-preview.empty { color: #555; }
+  #feedback {
+    flex: 1; overflow-y: auto; background: #15151c; border: 2px solid var(--border); border-radius: 6px;
+    padding: 10px; font-size: 0.95rem; margin-bottom: 10px; line-height: 1.5; color: var(--text); display: none;
+  }
+  #feedback.correct { border-color: var(--correct); color: #a5d6a7; }
+  #feedback.wrong { border-color: var(--wrong); color: #ef9a9a; }
+  #feedback .steps { color: var(--muted); margin-top: 6px; font-size: 0.85rem; }
+  #feedback .steps b { color: var(--accent); }
+  /* textbook-style radical: √ encloses the radicand (vinculum); coefficient 1 is omitted in JS */
+  .rad { display: inline-flex; align-items: flex-start; vertical-align: middle; line-height: 1; }
+  .rad .rsym { font-size: 1.45em; line-height: 0.82; transform: translateY(-0.06em); margin-right: -0.06em; }
+  .rad .radicand { border-top: 0.09em solid currentColor; padding: 0 0.18em; }
+
+  #keypad {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  #continue-btn { display: none; margin-top: 16px; }
+  #actor-screen { flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+  #actor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 620px; margin: 20px 0; }
+  .actor-card { background: rgba(20,20,30,0.9); border: 2px solid #444; border-radius: 12px; padding: 14px 12px; text-align: left; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 14px; }
+  .actor-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .actor-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,204,0,0.25); background: rgba(45,40,20,0.95); }
+  .actor-left { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .actor-preview { width: 96px; height: 96px; image-rendering: pixelated; display: block; }
+  .actor-name { font-weight: bold; color: #fff; font-size: 1rem; }
+  .actor-hp { font-size: 0.8rem; color: #ff6b6b; }
+  .actor-params { flex: 1 1 auto; display: flex; flex-direction: column; align-items: stretch; gap: 3px; font-size: 0.78rem; color: var(--muted); }
+  .actor-params .ap-role { font-weight: bold; color: var(--accent); font-size: 0.82rem; margin-bottom: 2px; }
+  .actor-params .ap-row { display: flex; justify-content: space-between; gap: 8px; }
+  .actor-params .ap-row i { font-style: normal; color: #aaa; }
+  .actor-params .ap-items { margin-top: 3px; font-size: 0.72rem; color: #8a8ad0; border-top: 1px solid #333; padding-top: 4px; }
+  #actor-label { min-height: 1.2em; }
+  @media (max-width: 480px) {
+    #actor-grid { grid-template-columns: 1fr; max-width: 360px; }
+  }
+  .key {
+    background: var(--key); border: 2px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 1.4rem; font-weight: bold; padding: 10px 0;
+    cursor: pointer; user-select: none; transition: background .1s; text-align: center;
+    touch-action: manipulation;
+  }
+  .key:active, .key.active { background: var(--key-active); transform: translateY(2px); }
+  .key.wide { grid-column: span 2; }
+  .key.action { background: #2e4a2e; border-color: #4caf50; }
+  .key.action:active { background: #3d6b3d; }
+  .key.clear { background: #4a2e2e; border-color: #e53935; }
+  .key.clear:active { background: #6b3d3d; }
+  .key.sqrt { font-size: 1.7rem; line-height: 1; }
+
+  @media (max-width: 780px) {
+    #game-screen { flex-direction: column; }
+    #dungeon { flex: 1.2; min-height: 40vh; }
+    #right-panel { max-width: none; min-width: 0; min-height: 45vh; border-left: none; border-top: 4px solid var(--border); }
+    #status-area { flex: 0 0 auto; }
+    #keyboard-area { flex: 1; }
+  }
+
+  /* ===== 美化強化：轉場 / 教學 / UI 細節 / 結算裝飾 ===== */
+  /* 過場黑幕 */
+  #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 400; transition: opacity .34s ease; }
+  #fade.on { opacity: 1; }
+  /* 進層橫幅 */
+  #layer-banner { position: fixed; top: 16%; left: 50%; transform: translateX(-50%); z-index: 350; pointer-events: none;
+    color: var(--accent); font-size: 2rem; font-weight: bold; text-shadow: 0 2px 10px #000, 0 0 18px rgba(255,204,0,.5); opacity: 0; }
+  #layer-banner.show { animation: bannerIn 1.3s ease; }
+  @keyframes bannerIn { 0%{opacity:0; transform:translateX(-50%) scale(.6);} 18%{opacity:1; transform:translateX(-50%) scale(1);}
+    78%{opacity:1; transform:translateX(-50%) scale(1);} 100%{opacity:0; transform:translateX(-50%) scale(1.12);} }
+  /* 受傷紅閃 */
+  #dmg-flash { position: fixed; inset: 0; z-index: 260; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle at 50% 45%, rgba(255,40,40,0) 25%, rgba(190,0,0,0.55) 100%); transition: opacity .12s ease; }
+  #dmg-flash.on { opacity: 1; }
+  /* 教學引導 */
+  #coach-tip { display: none; background: #33331f; border: 2px solid var(--accent); color: var(--accent);
+    border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; margin-bottom: 8px; }
+  #coach-tip.show { display: block; animation: bubblePop .3s ease; }
+  #coach-tip #coach-close { display: inline-block; margin-left: 10px; cursor: pointer; text-decoration: underline; font-size: 0.8rem; color: #fff; }
+  .coach { animation: coachPulse 1.2s infinite; }
+  @keyframes coachPulse { 0%,100%{ box-shadow: 0 0 0 0 rgba(255,204,0,.6);} 50%{ box-shadow: 0 0 0 8px rgba(255,204,0,0);} }
+  /* HP 條反饋 */
+  @keyframes hpHit { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
+  #hp-fill.hp-hit { animation: hpHit .4s ease; filter: brightness(1.6) saturate(1.4); }
+  @keyframes hpHeal { 0%{filter:brightness(1);} 50%{filter:brightness(1.9) drop-shadow(0 0 6px #4caf50);} 100%{filter:brightness(1);} }
+  #hp-fill.hp-heal { animation: hpHeal .5s ease; }
+  /* 對話氣泡彈入 / 輸入框按鍵脈衝 */
+  @keyframes bubblePop { 0%{ transform:scale(.8); opacity:0;} 100%{ transform:scale(1); opacity:1;} }
+  #speech-bubble.pop { animation: bubblePop .25s ease; }
+  @keyframes typedPulse { 0%{transform:scale(1);} 50%{transform:scale(1.05);} 100%{transform:scale(1);} }
+  #answer-preview.typed { animation: typedPulse .15s ease; }
+  /* 畫面淡入 */
+  @keyframes screenIn { from{opacity:0; transform:scale(1.03);} to{opacity:1; transform:scale(1);} }
+  .screen.anim-in { animation: screenIn .45s ease; }
+  /* 失敗骷髏 */
+  #gameover-skull { font-size: 5rem; line-height: 1; margin-bottom: 8px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+  #gameover-skull.show { animation: skullPop .5s ease, shake .6s ease .5s; }
+  @keyframes skullPop { from{ transform:scale(0) rotate(-25deg); opacity:0;} to{ transform:scale(1) rotate(0); opacity:1;} }
+  @keyframes shake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-5px);} 80%{transform:translateX(5px);} }
+  /* 勝利彩帶 */
+  #victory-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  #victory-screen > *:not(#victory-canvas) { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+
+<div id="fade"></div>
+<div id="dmg-flash"></div>
+<div id="layer-banner"></div>
+
+<!-- START -->
+  <div id="start-screen" class="screen">
+  <canvas id="title-canvas"></canvas>
+  <h1>⚔️ 實數地下城 ⚔️</h1>
+  <p>記得：答案要<strong>化簡到最簡根式</strong>（例如 √12 要寫 2√3）。</p>
+  <p>右上角有血量和道具欄，點擊道具即可使用。</p>
+  <button class="btn" id="start-btn">開始闖關</button>
+  <button class="btn mini" id="actor-btn">選擇角色</button>
+  <p id="actor-label" style="font-size:0.8rem; color:#aaa; margin-top:4px;">當前角色：劍士</p>
+  <button class="btn mini" id="difficulty-btn">難度</button>
+  <p id="difficulty-label" style="font-size:0.8rem; color:#aaa; margin-top:4px;">當前難度：普通</p>
+  <button class="btn mini" id="practice-btn">練習模式</button>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameover-screen" class="screen" style="display:none;">
+  <div id="gameover-skull">💀</div>
+  <h1>☠️ 你倒下了</h1>
+  <p id="gameover-msg"></p>
+  <button class="btn" id="retry-btn">重新挑戰</button>
+</div>
+
+<!-- VICTORY -->
+<div id="victory-screen" class="screen" style="display:none;">
+  <canvas id="victory-canvas"></canvas>
+  <h1 id="victory-title">🏆 通關！</h1>
+  <p>你成功打敗了地下城的所有怪物。</p>
+  <p id="victory-stats"></p>
+  <button class="btn" id="restart-btn">再玩一次</button>
+</div>
+
+<!-- DIFFICULTY -->
+<div id="difficulty-screen" class="screen" style="display:none; z-index:250;">
+  <h1>選擇難度</h1>
+  <p>難度會影響怪物的血量與傷害。</p>
+  <div class="ctrl-row" id="diff-row">
+    <button class="opt" data-diff="easy">輕鬆</button>
+    <button class="opt selected" data-diff="normal">普通</button>
+    <button class="opt" data-diff="hard">挑戰</button>
+  </div>
+  <button class="btn" id="difficulty-back">返回</button>
+</div>
+
+<!-- PRACTICE -->
+<div id="practice-screen" class="screen" style="display:none; z-index:250;">
+  <h1>練習模式</h1>
+  <p>選擇一個題型單獨練習（共 10 隻史萊姆）。</p>
+  <div class="ctrl-row" id="ptype-row">
+    <button class="opt" data-ptype="t1">平方根</button>
+    <button class="opt" data-ptype="t2">立方根</button>
+    <button class="opt" data-ptype="t3">化簡</button>
+    <button class="opt" data-ptype="t4">合併</button>
+    <button class="opt" data-ptype="t5">乘法</button>
+    <button class="opt" data-ptype="t6">混合</button>
+    <button class="opt" data-ptype="t7">負數根式</button>
+  </div>
+  <button class="btn" id="practice-back">返回</button>
+</div>
+
+<!-- ACTOR SELECT -->
+<div id="actor-screen" class="screen" style="display:none; z-index:250;">
+  <h1>選擇角色</h1>
+  <div id="actor-grid"></div>
+  <button class="btn" id="actor-back">返回</button>
+</div>
+
+<!-- MAIN GAME -->
+<div id="game-screen">
+  <div id="dungeon">
+    <canvas id="dungeon-canvas"></canvas>
+    <div id="speech-bubble"></div>
+  </div>
+  <div id="right-panel">
+    <div id="status-area">
+      <div id="progress-row">層數 <span id="layer-num">1</span> / <span id="layer-total">7</span>　怪物 <span id="monster-num">1</span> / <span id="monster-total">3</span></div>
+      <div id="hp-bar">
+        <div class="label"><span>HP</span><span id="hp-text">100 / 100</span></div>
+        <div id="hp-fill"><div id="hp-inner"></div></div>
+      </div>
+      <div id="items-row">
+        <div class="item-slot" id="item-potion" title="藥水：回復 30 HP">
+          <div class="icon">🧪</div><div class="name">藥水</div><div class="count" id="cnt-potion">1</div>
+        </div>
+        <div class="item-slot" id="item-hint" title="提示卡：顯示下一步">
+          <div class="icon">💡</div><div class="name">提示卡</div><div class="count" id="cnt-hint">1</div>
+        </div>
+        <div class="item-slot" id="item-skip" title="跳題卡：跳過此題並攻擊">
+          <div class="icon">⏭️</div><div class="name">跳題卡</div><div class="count" id="cnt-skip">0</div>
+        </div>
+      </div>
+    </div>
+    <div id="keyboard-area">
+      <div id="coach-tip">👉 在上方輸入答案，按「攻擊」打倒怪物！<span id="coach-close">知道了</span></div>
+      <div id="answer-preview" class="empty">點擊鍵盤輸入答案</div>
+      <div id="feedback"></div>
+      <div id="keypad">
+        <div class="key" data-key="7">7</div>
+        <div class="key" data-key="8">8</div>
+        <div class="key" data-key="9">9</div>
+        <div class="key" data-key="4">4</div>
+        <div class="key" data-key="5">5</div>
+        <div class="key" data-key="6">6</div>
+        <div class="key" data-key="1">1</div>
+        <div class="key" data-key="2">2</div>
+        <div class="key" data-key="3">3</div>
+        <div class="key" data-key="-">−</div>
+        <div class="key" data-key="0">0</div>
+        <div class="key sqrt" data-key="√">√</div>
+        <div class="key clear" data-key="CLR">清除</div>
+        <div class="key" data-key="BS">←</div>
+        <div class="key action" data-key="ATTACK">攻擊</div>
+      </div>
+      <button id="continue-btn" class="btn">繼續</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOP-RIGHT TOOLBAR: 靜音 / 全屏 -->
+<div id="topbar">
+  <button id="mute-btn" class="top-btn" title="靜音 / 取消靜音" aria-label="靜音">🔊</button>
+  <button id="fs-btn" class="top-btn" title="全屏 / 退出全屏" aria-label="全屏">⛶</button>
+</div>
+
+<script>
+/* =========================================================
+   實數地下城 - 單一 HTML 遊戲
+   ========================================================= */
+
+const ASSETS = {
+  actors: [
+    { id:'sword',   name:'劍士',   role:'均衡',   maxHp:100, height:170, atk:25, def:0.15, spd:1.00, heal:30, items:{potion:1,hint:1,skip:0}, sheets: {
+      idle:   { src:'assets/actors/Actor1_1.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
+      run:    { src:'assets/actors/Actor1_1.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
+      attack: { src:'assets/actors/Actor1_1.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
+      hurt:   { src:'assets/actors/Actor1_1.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
+    }},
+    { id:'berserk', name:'狂戰士', role:'暴力',   maxHp:120, height:175, atk:40, def:0.05, spd:0.90, heal:25, items:{potion:1,hint:1,skip:0}, sheets: {
+      idle:   { src:'assets/actors/Actor1_4.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
+      run:    { src:'assets/actors/Actor1_4.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
+      attack: { src:'assets/actors/Actor1_4.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
+      hurt:   { src:'assets/actors/Actor1_4.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
+    }},
+    { id:'mage',    name:'法師',   role:'脆皮炮台', maxHp:80, height:165, atk:30, def:0.06, spd:1.10, heal:35, items:{potion:2,hint:1,skip:0}, sheets: {
+      idle:   { src:'assets/actors/Actor1_6.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
+      run:    { src:'assets/actors/Actor1_6.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
+      attack: { src:'assets/actors/Actor1_6.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
+      hurt:   { src:'assets/actors/Actor1_6.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
+    }},
+    { id:'cleric',  name:'牧師',   role:'治癒',   maxHp:115, height:168, atk:20, def:0.25, spd:0.95, heal:55, items:{potion:2,hint:1,skip:0}, sheets: {
+      idle:   { src:'assets/actors/Actor1_7.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
+      run:    { src:'assets/actors/Actor1_7.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
+      attack: { src:'assets/actors/Actor1_7.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
+      hurt:   { src:'assets/actors/Actor1_7.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
+    }},
+    { id:'warlock', name:'術士',   role:'輔助',   maxHp:85,  height:168, atk:30, def:0.12, spd:1.00, heal:30, items:{potion:1,hint:2,skip:0}, sheets: {
+      idle:   { src:'assets/actors/Actor1_8.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
+      run:    { src:'assets/actors/Actor1_8.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
+      attack: { src:'assets/actors/Actor1_8.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
+      hurt:   { src:'assets/actors/Actor1_8.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
+    }},
+    { id:'fighter', name:'格鬥家', role:'速攻',   maxHp:110, height:170, atk:26, def:0.12, spd:1.20, heal:30, items:{potion:1,hint:1,skip:1}, sheets: {
+      idle:   { src:'assets/actors/Actor3_6.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
+      run:    { src:'assets/actors/Actor3_6.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
+      attack: { src:'assets/actors/Actor3_6.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
+      hurt:   { src:'assets/actors/Actor3_6.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
+    }}
+  ],
+  monsters: [
+    { name:'firehaunt',  display:'火焰幽魂', hp:40,  dmg:10, height:165, files:['monsters/Fire-haunt1.png','monsters/Fire-haunt2.png','monsters/Fire-haunt3.png','monsters/Fire-haunt4.png','monsters/Fire-haunt5.png'] },
+    { name:'demon',      display:'惡魔',     hp:55,  dmg:12, height:170, files:['monsters/demon1.png','monsters/demon2.png','monsters/demon3.png','monsters/demon4.png','monsters/demon5.png'] },
+    { name:'witch',      display:'女巫',     hp:55,  dmg:14, height:165, files:['monsters/witch1.png','monsters/witch2.png','monsters/witch3.png','monsters/witch4.png','monsters/witch5.png'] },
+    { name:'vampire',    display:'吸血鬼',   hp:60,  dmg:14, height:170, files:['monsters/vampire1.png','monsters/vampire2.png','monsters/vampire3.png','monsters/vampire4.png'] },
+    { name:'treant',     display:'樹人王',   hp:180, dmg:18, height:220, files:['monsters/Treant1.png','monsters/Treant2.png','monsters/Treant3.png','monsters/Treant4.png'], boss:true },
+    { name:'goblin',     display:'哥布林',   hp:28,  dmg:7,  height:165, sheet:{ src:'assets/monsters/Evil1_1.png', fw:48, fh:48, row:0, frames:1, speed:140, loop:true } },
+    { name:'bandit',     display:'強盜',     hp:35,  dmg:9,  height:168, sheet:{ src:'assets/monsters/Evil1_2.png', fw:48, fh:48, row:0, frames:1, speed:140, loop:true } },
+    { name:'darkwizard', display:'黑巫師',   hp:50,  dmg:13, height:170, sheet:{ src:'assets/monsters/Evil1_3.png', fw:48, fh:48, row:0, frames:1, speed:130, loop:true } },
+    { name:'darkknight', display:'魔騎士',   hp:68,  dmg:15, height:172, sheet:{ src:'assets/monsters/Evil1_7.png', fw:48, fh:48, row:0, frames:1, speed:130, loop:true } },
+    { name:'cultist',    display:'邪教徒',   hp:45,  dmg:11, height:168, sheet:{ src:'assets/monsters/Evil1_8.png', fw:48, fh:48, row:0, frames:1, speed:140, loop:true } },
+    // ===== 來自 newmonster 資料夾的新怪物（Enemy_Galore_I 為 64x64 像素風；其餘 512x512 已裁切為面向主角的左側 4 幀精靈條）=====
+    { name:'bat',          display:'蝙蝠',       hp:28,  dmg:7,  height:120, sheet:{ src:'assets/monsters/newmonster/Enemy_Galore_I/Bat/Bat_Fly.png', fw:64, fh:64, row:0, frames:4, speed:140, loop:true } },
+    { name:'pebble',       display:'石精',       hp:38,  dmg:8,  height:130, sheet:{ src:'assets/monsters/newmonster/Enemy_Galore_I/Pebble/Pebble_Idle.png', fw:64, fh:64, row:0, frames:4, speed:140, loop:true } },
+    { name:'boar',         display:'野豬',       hp:55,  dmg:13, height:220, sheet:{ src:'assets/monsters/newmonster_battle/boar.png', fw:180, fh:96, row:0, frames:4, speed:120, loop:true } },
+    { name:'pig',          display:'肉豬',       hp:50,  dmg:12, height:220, sheet:{ src:'assets/monsters/newmonster_battle/pig.png', fw:164, fh:88, row:0, frames:4, speed:120, loop:true } },
+    { name:'piggy',        display:'小豬',       hp:42,  dmg:11, height:220, sheet:{ src:'assets/monsters/newmonster_battle/piggy.png', fw:112, fh:60, row:0, frames:4, speed:120, loop:true } },
+    { name:'skeleton',     display:'骷髏',       hp:52,  dmg:13, height:220, sheet:{ src:'assets/monsters/newmonster_battle/skeleton.png', fw:96, fh:136, row:0, frames:4, speed:120, loop:true } },
+    { name:'witch_doctor', display:'巫醫',       hp:58,  dmg:14, height:220, sheet:{ src:'assets/monsters/newmonster_battle/witch_doctor.png', fw:172, fh:140, row:0, frames:4, speed:120, loop:true } },
+    { name:'snowman_a',    display:'雪人衛兵',   hp:42,  dmg:11, height:220, sheet:{ src:'assets/monsters/newmonster_battle/snowman_a.png', fw:104, fh:104, row:0, frames:4, speed:120, loop:true } },
+    { name:'snowman_b',    display:'雪人戰士',   hp:44,  dmg:12, height:220, sheet:{ src:'assets/monsters/newmonster_battle/snowman_b.png', fw:104, fh:104, row:0, frames:4, speed:120, loop:true } },
+    { name:'snowman_c',    display:'雪人射手',   hp:46,  dmg:12, height:220, sheet:{ src:'assets/monsters/newmonster_battle/snowman_c.png', fw:104, fh:124, row:0, frames:4, speed:120, loop:true } },
+    { name:'snowman_d',    display:'雪人重裝',   hp:48,  dmg:13, height:220, sheet:{ src:'assets/monsters/newmonster_battle/snowman_d.png', fw:108, fh:120, row:0, frames:4, speed:120, loop:true } },
+    { name:'snowman_e',    display:'雪人法師',   hp:50,  dmg:13, height:220, sheet:{ src:'assets/monsters/newmonster_battle/snowman_e.png', fw:112, fh:124, row:0, frames:4, speed:120, loop:true } },
+    { name:'snowman_f',    display:'雪人祭司',   hp:52,  dmg:14, height:220, sheet:{ src:'assets/monsters/newmonster_battle/snowman_f.png', fw:112, fh:104, row:0, frames:4, speed:120, loop:true } },
+    { name:'snowman_g',    display:'雪人王',     hp:55,  dmg:15, height:220, sheet:{ src:'assets/monsters/newmonster_battle/snowman_g.png', fw:136, fh:124, row:0, frames:4, speed:120, loop:true } },
+    { name:'kid_ghost',    display:'鬼小孩',     hp:45,  dmg:13, height:220, sheet:{ src:'assets/monsters/newmonster_battle/kid_ghost.png', fw:96, fh:108, row:0, frames:4, speed:120, loop:true } },
+    { name:'nasta',        display:'納斯塔',     hp:50,  dmg:14, height:220, sheet:{ src:'assets/monsters/newmonster_battle/nasta.png', fw:92, fh:128, row:0, frames:4, speed:120, loop:true } },
+    { name:'reindeer',     display:'馴鹿',       hp:55,  dmg:15, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer.png', fw:108, fh:124, row:0, frames:4, speed:120, loop:true } },
+    { name:'reindeer_phurold', display:'馴鹿衛隊', hp:58, dmg:16, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer_phurold.png', fw:108, fh:128, row:0, frames:4, speed:120, loop:true } },
+    { name:'reindeer_rudolph', display:'紅鼻馴鹿', hp:60, dmg:16, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer_rudolph.png', fw:108, fh:124, row:0, frames:4, speed:120, loop:true } },
+    // ===== 第 2~7 層關底 Boss（128x128 水平精靈條，idle 幀數 = 圖寬/128）=====
+    { name:'boss_badger',   display:'獾王',       hp:110, dmg:14, height:210, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Badger/Badger/badger_idle.png',     fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
+    { name:'boss_dino_rex', display:'暴龍王',     hp:150, dmg:16, height:230, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Dino_Rex/DinoRex/dino_rex_idle.png', fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
+    { name:'boss_dino_tri', display:'三角龍王',   hp:190, dmg:18, height:230, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Dino_Tri/DinoTri/dino_tri_idle_fixed.png', fw:128, fh:128, row:0, frames:1,  speed:150, loop:true } },
+    { name:'boss_frogger',  display:'巨蛙王',     hp:230, dmg:20, height:210, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Frogger/Frogger/frogger_idle.png',   fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
+    { name:'boss_gollux',   display:'岩巨像',     hp:280, dmg:23, height:230, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Gollux/Gollux/gollux_idle.png',     fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
+    { name:'boss_pengu',    display:'寒冰企鵝王', hp:340, dmg:26, height:210, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Pengu/Pengu/pengu_idle.png',       fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } }
+  ],
+  fx: {
+    explosion: { src:'assets/fx/spritesheet.png', fw:32, fh:32, frames:8 },
+    death: { files:['assets/fx/enemy-death1.png','assets/fx/enemy-death2.png','assets/fx/enemy-death3.png','assets/fx/enemy-death4.png','assets/fx/enemy-death5.png','assets/fx/enemy-death6.png','assets/fx/enemy-death7.png','assets/fx/enemy-death8.png'] }
+  },
+  bg: 'assets/bg/background.png',
+  layerBgs: [
+    'assets/bg/layer1.png',      // 第1層 枯木林
+    'assets/bg/layer2.png',      // 第2層 平原
+    'assets/bg/layer3.png',      // 第3層 雪山
+    'assets/bg/layer4.png',      // 第4層 洞穴
+    'assets/bg/layer5.png',      // 第5層 觀星台夜景
+    'assets/bg/layer6.png',      // 第6層 異星珊瑚
+    'assets/bg/layer7.png'       // 第7層 月夜椰林
+  ]
+};
+
+const LAYER_POOLS = [
+  { count:4, pool:['goblin','bandit','bat'] },
+  { count:4, pool:['goblin','bandit','firehaunt','pebble'] },
+  { count:4, pool:['firehaunt','cultist','darkwizard','demon','snowman_a','snowman_b','snowman_c','snowman_d','snowman_e','snowman_f','snowman_g'] },
+  { count:4, pool:['demon','darkwizard','witch','cultist','boar','pig','skeleton','witch_doctor'] },
+  { count:4, pool:['witch','vampire','darkknight','cultist','reindeer','nasta','kid_ghost'] },
+  { count:4, pool:['vampire','darkknight','demon','treant','reindeer_phurold','reindeer_rudolph'] },
+  { count:4, pool:['demon','vampire','darkknight','cultist','treant','piggy'] }
+];
+// 各層關底 Boss：層 2~7 最後一隻固定為對應 Boss
+const LAYER_BOSS_OF = {
+  2:'boss_badger', 3:'boss_dino_rex', 4:'boss_dino_tri',
+  5:'boss_frogger', 6:'boss_gollux', 7:'boss_pengu'
+};
+
+/* ---------- utilities ---------- */
+const $ = id => document.getElementById(id);
+const randInt = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const pick = a => a[Math.floor(Math.random()*a.length)];
+function generateLayers() {
+  return LAYER_POOLS.map((layer, i) => {
+    const layerNum = i + 1;
+    const monsters = Array.from({ length: layer.count }, () => pick(layer.pool));
+    const boss = LAYER_BOSS_OF[layerNum];
+    if (boss) monsters[monsters.length - 1] = boss;   // 該層最後一隻固定為 Boss
+    return { monsters };
+  });
+}
+let LAYERS = generateLayers();
+function getSelectedActor() {
+  try {
+    const id = localStorage.getItem('realDungeonActor');
+    return ASSETS.actors.find(a => a.id === id) || ASSETS.actors[0];
+  } catch(e) { return ASSETS.actors[0]; }
+}
+const gcd = (a,b) => b===0 ? a : gcd(b, a%b);
+function squareFree(n) {
+  if (n <= 1) return true;
+  for (let i=2; i*i<=n; i++) if (n%(i*i)===0) return false;
+  return true;
+}
+function simplifyRadical(n) {
+  // n = k^2 * m  -> return {k,m}
+  let k=1, m=n;
+  for (let i=2; i*i<=m; i++) {
+    while (m % (i*i) === 0) { m /= i*i; k *= i; }
+  }
+  return {k,m};
+}
+function displayAns(ans) {
+  if (ans.type==='int') return String(ans.value);
+  const c = ans.coef, r = ans.radicand;
+  if (c===1) return '√'+r;
+  if (c===-1) return '-√'+r;
+  return c+'√'+r;
+}
+// 把題目/步驟中的 "a√b" / "a∛b" 轉成課本式開方（√ 包住數字），係數 1 省略
+function radSpan(sign, coef, rad, sym) {
+  const showCoef = (coef !== '' && coef !== '1');
+  const s = (sign === '−' || sign === '-') ? '−' : '';
+  const inner = (showCoef ? coef : '') + '<span class="rsym">' + sym + '</span><span class="radicand">' + rad + '</span>';
+  return s + '<span class="rad">' + inner + '</span>';
+}
+function mathHTML(text) {
+  if (!text) return text;
+  text = String(text)
+    .replace(/([-−]?)(\d*)∛(\d+)/g, (m, s, c, r) => radSpan(s, c, r, '∛'))
+    .replace(/([-−]?)(\d*)√(\d+)/g, (m, s, c, r) => radSpan(s, c, r, '√'));
+  return text;
+}
+
+/* ---------- assets / sprites ---------- */
+const loadedImages = {};
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(src);
+    img.src = src;
+    loadedImages[src] = img;
+  });
+}
+async function loadAssets() {
+  const jobs = [];
+  for (const actor of ASSETS.actors) {
+    for (const key of Object.keys(actor.sheets)) {
+      jobs.push(loadImage(actor.sheets[key].src));
+    }
+  }
+  for (const m of ASSETS.monsters) {
+    if (m.files) {
+      for (const f of m.files) jobs.push(loadImage('assets/' + f));
+    } else if (m.sheet) {
+      jobs.push(loadImage(m.sheet.src));
+    }
+  }
+  jobs.push(loadImage(ASSETS.fx.explosion.src));
+  for (const f of ASSETS.fx.death.files) jobs.push(loadImage(f));
+  jobs.push(loadImage(ASSETS.bg));
+  jobs.push(loadImage('assets/bg/backwin.png'));
+  const bgSet = new Set(ASSETS.layerBgs);
+  for (const src of bgSet) if (src !== ASSETS.bg) jobs.push(loadImage(src));
+  await Promise.all(jobs).catch(e => console.warn('asset load issue', e));
+}
+
+class SheetSprite {
+  constructor(cfg) {
+    this.img = loadedImages[cfg.src] || new Image();
+    if (!loadedImages[cfg.src]) this.img.src = cfg.src;
+    this.fw = cfg.fw; this.fh = cfg.fh; this.frames = cfg.frames;
+    this.row = cfg.row || 0;
+    this.cols = cfg.cols || 0;            // cols>0 時視為多行網格（例如 4x4）
+    this.startFrame = cfg.startFrame || 0;
+    this.bob = cfg.bob || false;
+    this.bobOffset = 0;
+    this.current = 0; this.timer = 0;
+    this.speed = cfg.speed || 150;
+    this.loop = cfg.loop !== false;
+    this.done = false;
+  }
+  update(dt) {
+    this.timer += dt;
+    if (this.bob) this.bobOffset = Math.sin(Date.now()/300) * 3;
+    if (this.timer >= this.speed) {
+      this.timer = 0;
+      this.current++;
+      if (this.current >= this.frames) {
+        if (this.loop) this.current = 0; else { this.current = this.frames-1; this.done = true; }
+      }
+    }
+  }
+  draw(ctx, x, y, targetHeight, flip) {
+    const scale = targetHeight / this.fh;
+    const w = this.fw * scale, h = this.fh * scale;
+    let sx, sy;
+    if (this.cols > 0) {
+      const frame = (this.current + this.startFrame) % this.frames;
+      sx = (frame % this.cols) * this.fw;
+      sy = (this.row + Math.floor(frame / this.cols)) * this.fh;
+    } else {
+      sx = (this.current + this.startFrame) * this.fw;
+      sy = this.row * this.fh;
+    }
+    const yPos = y + this.bobOffset;
+    ctx.save();
+    if (flip) { ctx.translate(x, yPos); ctx.scale(-1, 1); ctx.drawImage(this.img, sx, sy, this.fw, this.fh, -w, 0, w, h); }
+    else ctx.drawImage(this.img, sx, sy, this.fw, this.fh, x, yPos, w, h);
+    ctx.restore();
+  }
+  reset() { this.current=0; this.timer=0; this.done=false; }
+}
+
+class FrameSprite {
+  constructor(files) {
+    this.imgs = files.map(f => loadedImages[f] || (()=>{ const i=new Image(); i.src=f; return i; })());
+    this.current = 0; this.timer = 0; this.speed = 200; this.loop = true; this.done = false;
+    this.bobOffset = 0;
+  }
+  update(dt) {
+    this.timer += dt;
+    this.bobOffset = 0;   // 檔案型怪物不上下飄（與 SheetSprite 一致，尊重 cfg.bob）
+    if (this.timer >= this.speed) {
+      this.timer = 0;
+      this.current++;
+      if (this.current >= this.imgs.length) {
+        if (this.loop) this.current = 0; else { this.current = this.imgs.length-1; this.done = true; }
+      }
+    }
+  }
+  draw(ctx, x, y, targetHeight, flip) {
+    const img = this.imgs[this.current];
+    if (!img.complete) return;
+    const scale = targetHeight / img.height;
+    const w = img.width * scale, h = targetHeight;
+    const yPos = y + this.bobOffset;
+    ctx.save();
+    if (flip) { ctx.translate(x, yPos); ctx.scale(-1,1); ctx.drawImage(img, -w, 0, w, h); }
+    else ctx.drawImage(img, x, yPos, w, h);
+    ctx.restore();
+  }
+  reset() { this.current=0; this.timer=0; this.done=false; }
+}
+
+class FxSprite {
+  constructor(cfg) {
+    if (cfg.src) {
+      this.img = loadedImages[cfg.src] || new Image(); if (!loadedImages[cfg.src]) this.img.src = cfg.src;
+      this.sheet = true; this.fw = cfg.fw; this.fh = cfg.fh; this.frames = cfg.frames;
+    } else {
+      this.imgs = cfg.files.map(f => loadedImages[f] || (()=>{ const i=new Image(); i.src=f; return i; })());
+      this.sheet = false;
+    }
+    this.current = 0; this.timer = 0; this.speed = 60; this.done = false; this.active = false;
+  }
+  start() { this.active=true; this.current=0; this.timer=0; this.done=false; }
+  update(dt) {
+    if (!this.active) return;
+    this.timer += dt;
+    if (this.timer >= this.speed) { this.timer=0; this.current++; if (this.current >= (this.sheet?this.frames:this.imgs.length)) { this.done=true; this.active=false; } }
+  }
+  draw(ctx, x, y, size) {
+    if (!this.active) return;
+    if (this.sheet) {
+      ctx.drawImage(this.img, this.current*this.fw, 0, this.fw, this.fh, x-size/2, y-size/2, size, size);
+    } else {
+      const img = this.imgs[this.current]; if (!img.complete) return;
+      ctx.drawImage(img, x-size/2, y-size/2, size, size);
+    }
+  }
+}
+
+/* ---------- drawing helpers: torches & vignette ---------- */
+function drawTorch(ctx, x, y, time) {
+  // 牆壁火把：光暈 + 支架 + 跳動火焰
+  const flick = 0.72 + 0.28 * Math.sin(time / 110 + x * 0.7) + 0.06 * Math.sin(time / 37);
+  const r = 95;
+  const g = ctx.createRadialGradient(x, y - 6, 4, x, y - 6, r);
+  g.addColorStop(0, `rgba(255,190,90,${0.42 * flick})`);
+  g.addColorStop(0.4, `rgba(255,120,40,${0.16 * flick})`);
+  g.addColorStop(1, 'rgba(255,120,40,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y - 6, r, 0, Math.PI * 2); ctx.fill();
+  // 支架
+  ctx.fillStyle = '#2e2113';
+  ctx.fillRect(x - 3, y, 6, 28);
+  ctx.fillStyle = '#4a3722';
+  ctx.fillRect(x - 5, y + 24, 10, 5);
+  // 火焰（多層橢圓，使用 lighter 加亮）
+  const fy = y - 6;
+  const fl = 17 + 4 * Math.sin(time / 90 + x * 0.1);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = 'rgba(255,120,30,0.85)';
+  ctx.beginPath(); ctx.ellipse(x, fy - fl * 0.4, 8, fl * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,180,60,0.95)';
+  ctx.beginPath(); ctx.ellipse(x, fy - fl * 0.5, 5.5, fl * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,245,170,1)';
+  ctx.beginPath(); ctx.ellipse(x, fy - fl * 0.55, 3, fl * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function drawVignette(ctx, W, H, strength) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.max(W, H) * 0.72);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, `rgba(0,0,0,${strength})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/* ---------- audio ---------- */
+const AudioSys = {
+  ctx: null,
+  muted: false,
+  unlock() {
+    if (!this.ctx) this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  toggleMute() { this.muted = !this.muted; return this.muted; },
+  uiClick() { this.tone(360, 0.045, 'triangle', 0.045); },
+  tone(freq, dur, type='square', vol=0.05) {
+    if (this.muted || !this.ctx) return;
+    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+    o.type=type; o.frequency.value=freq; g.gain.value=vol;
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime+dur); o.stop(this.ctx.currentTime+dur);
+  },
+  attack() { this.tone(220,0.12,'square',0.08); setTimeout(()=>this.tone(440,0.1,'square',0.05),60); },
+  hit() { this.tone(120,0.18,'sawtooth',0.07); },
+  correct() { this.tone(523,0.1,'square',0.05); setTimeout(()=>this.tone(784,0.15,'square',0.05),100); },
+  wrong() { this.tone(150,0.25,'sawtooth',0.06); },
+  item() { this.tone(660,0.1,'square',0.05); setTimeout(()=>this.tone(880,0.2,'square',0.05),100); },
+  win() { [523,659,784,1046].forEach((f,i)=>setTimeout(()=>this.tone(f,0.25,'square',0.06),i*150)); }
+};
+
+/* ---------- question generator ---------- */
+const QuestionGen = {
+  perfectSquares: [1,4,9,16,25,36,49,64,81,100,121,144,169,196,225],
+  perfectCubes: [1,8,27,64,125,216,343,512],
+  squareFree: [2,3,5,6,7,10,11,13,14,15,17,19,21,22,23,26,29,30,31,33,34,35,37,38,39,41,42,43,46,47,51,53,55,57,58,59,61,62,65,66,67,69,70,71,73,74,77,78,79,82,83,85,86,87,89,91,93,94,95,97,101,102,103,105,106,107,109,110,111,113,114,115,118,119,122,123,127,129,130,131,133,134,135,137,138,139,141,142,143,145,146,149,151,154,155,157,158,159,161,163,165,166,167,170,173,174,177,178,179,181,182,183,185,186,187,190,191,193,194,195,197,199,201,202,203,205,206,209,210,211,213,214,215,217,218,219,221,222,223,226,227,229,230,231,233,234,235,237,238,239,241,246,247,249,251,253,254,255,257,258,259,262,263,265,266,267,269,271,273,274,278,281,282,283,285,286,287,290,291,293,295,298,299,301,302,303,305,307,309,310,311,313,314,317,318,319,321,322,323,326,327,329,330,331,334,335,337,339,341,345,346,347,349,350,353,354,355,357,358,359,362,365,366,367,369,370,371,373,374,377,379,381,382,383,385,386,387,389,390,391,393,394,395,397,398,399,401,402,403,406,407,409,410,411,413,414,415,417,418,419,421,422,426,427,429,430,431,433,434,435,437,438,439,441,442,443,445,446,447,449,451,453,454,455,457,458,459,461,462,463,465,466,467,469,470,471,473,474,478,479,481,482,483,485,486,487,489,490,491,493,494,495,497,498,499,501,502,503,505,506,509,510,511],
+  gen(level, forceType) {
+    if (forceType && this[forceType]) return this[forceType]();
+    if (level === 1) return this.t1();
+    if (level === 2) return pick([this.t1(), this.t2(), this.t3()]);
+    if (level === 3) return pick([this.t3(), this.t4(), this.t5(), this.t7()]);
+    if (level === 4) return pick([this.t4(), this.t5(), this.t6(), this.t7()]);
+    return pick([this.t5(), this.t6(), this.t6(), this.t7()]);
+  },
+  makeInt(value, text, steps) { return { type:'int', value, text, steps }; },
+  makeRad(coef, radicand, text, steps) { return { type:'rad', coef, radicand, value: coef*Math.sqrt(radicand), text, steps }; },
+  t1() {
+    const v = pick(this.perfectSquares);
+    const text = `√${v} = ?`;
+    return this.makeInt(Math.round(Math.sqrt(v)), text, [`√${v} = ${Math.round(Math.sqrt(v))}`]);
+  },
+  t2() {
+    const v = pick(this.perfectCubes);
+    const text = `∛${v} = ?`;
+    return this.makeInt(Math.round(Math.cbrt(v)), text, [`∛${v} = ${Math.round(Math.cbrt(v))}`]);
+  },
+  t3() {
+    const k = randInt(2, 9);
+    const m = pick(this.squareFree.slice(0, 30));
+    const n = k*k*m;
+    const text = `化簡 √${n}`;
+    const steps = [`√${n} = √(${k}² × ${m})`, `= ${k}√${m}`];
+    return this.makeRad(k, m, text, steps);
+  },
+  t4() {
+    const m = pick(this.squareFree.slice(0, 25));
+    const a1 = randInt(1, 8), a2 = randInt(1, 8);
+    const text = `化簡 ${a1}√${m} + ${a2}√${m}`;
+    const steps = [`同類根式合併：(${a1}+${a2})√${m}`, `= ${a1+a2}√${m}`];
+    return this.makeRad(a1+a2, m, text, steps);
+  },
+  t5() {
+    // √a * √b, with product simplifiable
+    let a = randInt(2, 30), b = randInt(2, 30);
+    // bias toward nice products by regenerating a few times
+    for (let attempts=0; attempts<20; attempts++) {
+      const prod = a*b;
+      const {k,m} = simplifyRadical(prod);
+      if (k > 1 || m <= 30) break;
+      a = randInt(2,30); b = randInt(2,30);
+    }
+    const prod = a*b;
+    const {k,m} = simplifyRadical(prod);
+    const text = `計算 √${a} × √${b}`;
+    let steps = [`√${a} × √${b} = √(${a}×${b}) = √${prod}`];
+    if (m===1) { steps.push(`= ${k}`); return this.makeInt(k, text, steps); }
+    steps.push(`= ${k}√${m}`);
+    return this.makeRad(k, m, text, steps);
+  },
+  t6() {
+    const m = pick(this.squareFree.slice(0, 20));
+    const k1 = randInt(2, 5), k2 = randInt(2, 5);
+    const n1 = k1*k1*m, n2 = k2*k2*m;
+    const text = `化簡 √${n1} + √${n2}`;
+    const steps = [`√${n1} = ${k1}√${m}`, `√${n2} = ${k2}√${m}`, `相加 = ${k1+k2}√${m}`];
+    return this.makeRad(k1+k2, m, text, steps);
+  },
+  t7() {
+    // 負數根式：a√m − b√m (b>a) 或 −√v
+    if (Math.random() < 0.5) {
+      const m = pick(this.squareFree.slice(0, 25));
+      const a = randInt(1, 6), b = randInt(a+1, a+6);
+      const text = `化簡 ${a}√${m} − ${b}√${m}`;
+      const steps = [`同類根式合併：(${a}−${b})√${m}`, `= ${a-b}√${m}`];
+      return this.makeRad(a-b, m, text, steps);
+    }
+    const v = pick(this.perfectSquares);
+    const r = Math.round(Math.sqrt(v));
+    const text = `−√${v} = ?`;
+    return this.makeInt(-r, text, [`−√${v} = −${r}`]);
+  }
+};
+
+/* ---------- parser / checker ---------- */
+const Parser = {
+  parse(s) {
+    s = s.trim().replace(/\s+/g, '').replace(/\*/g, '').toLowerCase();
+    s = s.replace(/sqrt\((\d+)\)/g, '√$1');
+    if (/^-?\d+$/.test(s)) return { type:'int', value: parseInt(s) };
+    const m = s.match(/^(-?\d*)√(\d+)$/);
+    if (m) {
+      let c = m[1];
+      if (c === '' || c === '+') c = 1; else if (c === '-') c = -1; else c = parseInt(c);
+      const r = parseInt(m[2]);
+      return { type:'rad', coef: c, radicand: r, value: c * Math.sqrt(r) };
+    }
+    return null;
+  },
+  check(input, correct) {
+    const p = this.parse(input);
+    if (!p) return { ok: false, reason: '無法解析，請輸入整數或根式（例如 2√3）' };
+    if (correct.type === 'int') {
+      if (p.type !== 'int') return { ok: false, reason: '正確答案是整數，請寫整數。' };
+      if (Math.abs(p.value - correct.value) > 1e-6) return { ok: false, reason: '數值不對。' };
+      return { ok: true };
+    }
+    if (p.type !== 'rad') return { ok: false, reason: '正確答案是根式，請用根式表示。' };
+    if (!squareFree(p.radicand)) return { ok: false, reason: '根式還沒化簡到最簡，請繼續化簡（例如 √12 = 2√3）。' };
+    if (Math.abs(p.value - correct.value) > 1e-6) return { ok: false, reason: '數值不對。' };
+    return { ok: true };
+  }
+};
+
+/* ---------- game ---------- */
+const Game = {
+  layer: 1,
+  monsterIdx: 0,
+  actor: null,
+  player: { hp: 100, maxHp: 100, items: { potion:1, hint:1, skip:0 } },
+  monster: { type:null, maxHp:0, hp:0, dmg:0 },
+  question: null,
+  answer: '',
+  feedback: '',
+  feedbackClass: '',
+  hintUsed: false,
+  state: 'idle', // idle, playerAttack, monsterAttack, monsterDie, victory, gameover
+  animTime: 0,
+  lastTime: 0,
+  effects: [],
+  sprites: {},
+  canvas: null,
+  ctx: null,
+  best: 0,
+  mode: 'campaign',
+  practiceType: null,
+  difficulty: 'normal',
+  bgScroll: 0,
+  walkElapsed: 0,
+  monsterHitFlash: 0,
+  popups: [],
+  telegraphElapsed: 0,
+  pendingDmg: 0,
+  coachActive: false,
+  practiceLayers: [{ monsters: ['goblin','goblin','goblin','goblin','goblin','goblin','goblin','goblin','goblin','goblin'] }],
+
+  init() {
+    this.actor = getSelectedActor();
+    this.player.maxHp = this.actor.maxHp;
+    this.player.hp = this.player.maxHp;
+    this.player.items = Object.assign({}, this.actor.items);
+    this.canvas = $('dungeon-canvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    this.setupKeyboard();
+    this.setupItems();
+    this.loadBest();
+    this.startBattle();
+    this.lastTime = performance.now();
+    requestAnimationFrame(t => this.loop(t));
+    if (DEBUG.on && DEBUG._pending) { const p = DEBUG._pending; DEBUG._pending = null; DEBUG.apply(p.n, p.boss); }
+  },
+  resize() {
+    const rect = $('dungeon').getBoundingClientRect();
+    this.canvas.width = rect.width * window.devicePixelRatio;
+    this.canvas.height = rect.height * window.devicePixelRatio;
+    this.canvas.style.width = rect.width + 'px';
+    this.canvas.style.height = rect.height + 'px';
+    this.ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+  },
+  loadBest() {
+    try { const b = localStorage.getItem('realNumberDungeonBest'); this.best = b ? parseInt(b) : 0; } catch(e){}
+  },
+  saveBest() {
+    const score = (this.layer-1)*100 + this.monsterIdx;
+    if (score > this.best) { this.best = score; try { localStorage.setItem('realNumberDungeonBest', score); } catch(e){} }
+  },
+  currentMonsterType() { return this.activeLayers()[this.layer-1].monsters[this.monsterIdx]; },
+  currentLayerTotal() { return this.activeLayers()[this.layer-1].monsters.length; },
+  activeLayers() { return this.mode === 'practice' ? this.practiceLayers : LAYERS; },
+  startBattle() {
+    const typeName = this.currentMonsterType();
+    const cfg = ASSETS.monsters.find(m => m.name === typeName);
+    const dm = ({ easy:[0.7,0.7], normal:[1,1], hard:[1.4,1.3] })[this.difficulty] || [1,1];
+    const mhp = Math.max(10, Math.round(cfg.hp * dm[0]));
+    const mdmg = Math.max(4, Math.round(cfg.dmg * dm[1]));
+    this.monster = { ...cfg, maxHp: mhp, currentHp: mhp, dmg: mdmg };
+    if (cfg.sheet) {
+      this.monster.sprite = new SheetSprite(cfg.sheet);
+      this.monster.flip = (cfg.flip !== undefined) ? cfg.flip : false;   // 預設 MZ 朝左；Boss 設 flip:true 翻轉朝左面向玩家
+    } else {
+      this.monster.sprite = new FrameSprite(cfg.files.map(f => 'assets/' + f));
+      this.monster.sprite.speed = 180;
+      this.monster.flip = (cfg.flip !== undefined) ? cfg.flip : true;    // 舊素材原生朝右，翻轉後朝左（面向玩家）
+    }
+    this.player.sprite = new SheetSprite(this.actor.sheets.idle);
+    this.state = 'idle';
+    this.effects = [];
+    this.hintUsed = false;
+    this.answer = '';
+    this.updateAnswerPreview();
+    this.nextQuestion();
+    this.maybeShowCoach();
+    this.updateUI();
+  },
+  nextQuestion() {
+    this.question = QuestionGen.gen(this.layer, this.practiceType);
+    this.answer = '';
+    this.updateAnswerPreview();
+    this.showSpeech(this.question.text);
+    $('feedback').style.display = 'none';
+    const kb = $('keypad'); if (kb) kb.style.display = '';        // 復原鍵盤（擊殺流程後進下一隻也能輸入）
+    const cb = $('continue-btn'); if (cb) cb.style.display = 'none';
+  },
+  showSpeech(text) {
+    const el = $('speech-bubble');
+    el.innerHTML = mathHTML(text);
+    el.style.display = 'block';
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  },
+  hideSpeech() { $('speech-bubble').style.display = 'none'; },
+  updateAnswerPreview() {
+    const el = $('answer-preview');
+    if (this.answer === '') { el.textContent = '點擊鍵盤輸入答案'; el.classList.add('empty'); }
+    else { el.textContent = this.answer; el.classList.remove('empty'); }
+  },
+  submitAnswer() {
+    if (this.state !== 'idle' || this.answer === '') return;
+    const res = Parser.check(this.answer, this.question);
+    if (res.ok) this.handleCorrect();
+    else this.handleWrong(res.reason);
+  },
+  handleCorrect() {
+    AudioSys.correct();
+    this.feedback = '答對了！給予怪物重擊！<br><b>正確答案：</b>' + displayAns(this.question);
+    if (this.question.steps && this.question.steps.length) {
+      this.feedback += '<div class="steps"><b>解題步驟：</b><br>' + this.question.steps.join('<br>') + '</div>';
+    }
+    this.feedbackClass = 'correct';
+    this.showFeedback();
+    this.hideSpeech();
+    $('keypad').style.display = 'none';   // 出現解題步驟立即隱藏鍵盤
+    this.state = 'playerAttack';
+    this.player.sprite = new SheetSprite(this.actor.sheets.attack);
+    this.player.sprite.speed *= this.actor.spd;
+    this.player.sprite.reset();
+    this.animTime = 0;
+    // 立即扣血：讓攻擊動畫結束（約 200ms）時的死亡判斷能正確觸發，修復「怪物永遠打不死」的致命 bug
+    const atk = this.actor.atk;
+    this.monster.currentHp -= atk;
+    if (this.monster.currentHp <= 0) this.monster.currentHp = 0;
+    this.monsterHitFlash = 200;
+    this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-' + atk, '#ffffff', 24);
+    if (this.monster.currentHp <= 0) this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30);
+    this.hideCoach();
+    this.updateUI();
+    this.scheduleEffect(() => {
+      const fx = new FxSprite(ASSETS.fx.explosion);
+      fx.start();
+      this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.62, y: this.floorY()-50, size:70 });
+      AudioSys.attack();
+    }, 250);
+  },
+  handleWrong(reason) {
+    AudioSys.wrong();
+    this.pendingDmg = this.monster.dmg;
+    this.feedback = `答錯了！怪物準備攻擊…<br><b>正確答案：</b>${displayAns(this.question)}`;
+    if (this.question.steps && this.question.steps.length) {
+      this.feedback += '<div class="steps"><b>解題步驟：</b><br>' + this.question.steps.join('<br>') + '</div>';
+    }
+    if (reason) this.feedback += '<div class="steps">' + reason + '</div>';
+    this.feedbackClass = 'wrong';
+    this.showFeedback();
+    this.hideSpeech();
+    $('keypad').style.display = 'none';   // 出現解題步驟立即隱藏鍵盤
+    this.state = 'monsterTelegraph';
+    this.telegraphElapsed = 0;
+    this.updateUI();
+  },
+  doMonsterHit() {
+    let dmg = Math.max(1, Math.round(this.pendingDmg * (1 - this.actor.def)));
+    if (DEBUG.on && DEBUG.invincible) dmg = 0;   // 測試模式：無敵
+    this.player.hp -= dmg;
+    if (this.player.hp < 0) this.player.hp = 0;
+    this.state = 'monsterAttack';
+    this.player.sprite = new SheetSprite(this.actor.sheets.hurt);
+    this.player.sprite.reset();
+    AudioSys.hit();
+    this.flashHp('hit');
+    this.spawnPopup(this.playerX() + 40, this.floorY() - 92, '-' + dmg, '#ff6b6b', 24);
+    this.updateUI();
+    if (this.player.hp <= 0) {
+      setTimeout(() => this.gameOver(), 900);
+    } else {
+      setTimeout(() => this.enterResult(), 900);
+    }
+  },
+  showFeedback() {
+    const el = $('feedback');
+    el.innerHTML = mathHTML(this.feedback);
+    el.className = this.feedbackClass;
+    el.style.display = 'block';
+  },
+  enterResult() {
+    this.state = 'result';
+    this.player.sprite = new SheetSprite(this.actor.sheets.idle);
+    this.player.sprite.reset();
+    const kb = $('keypad'); if (kb) kb.style.display = 'none';
+    const cb = $('continue-btn'); if (cb) cb.style.display = 'block';
+  },
+  continueGame() {
+    const kb = $('keypad'); if (kb) kb.style.display = '';
+    const cb = $('continue-btn'); if (cb) cb.style.display = 'none';
+    this.state = 'idle';
+    if (this.monster.currentHp <= 0) this.advanceMonster();   // 擊殺：按繼續後才播死亡+過場並出下一隻
+    else this.nextQuestion();
+  },
+  scheduleEffect(fn, delay) {
+    setTimeout(fn, delay);
+  },
+  advanceMonster() {
+    this.saveBest();
+    this.dropItems();
+    this.state = 'monsterDie';
+    const fx = new FxSprite(ASSETS.fx.death);
+    fx.start();
+    this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.65, y: this.floorY()-this.monster.height*0.5, size: 90 });
+    setTimeout(() => this.beginWalk(), 450);
+  },
+  beginWalk() {
+    this.state = 'walk';
+    this.walkElapsed = 0;
+    this.player.sprite = new SheetSprite(this.actor.sheets.run);
+    this.player.sprite.reset();
+  },
+  proceedToNext() {
+    this.monsterIdx++;
+    if (this.monsterIdx >= this.currentLayerTotal()) {
+      this.layer++;
+      showLayerBanner(this.layer);
+      this.monsterIdx = 0;
+      if (this.mode === 'practice') {
+        if (this.layer > this.practiceLayers.length) { this.victory('練習完成！'); return; }
+      } else {
+        this.player.items.skip++;
+        if (this.layer > LAYERS.length) { this.victory(); return; }
+      }
+    }
+    this.startBattle();
+  },
+  dropItems() {
+    if (Math.random() < 0.35) this.player.items.potion++;
+    if (Math.random() < 0.25) this.player.items.hint++;
+  },
+  useItem(type) {
+    if (this.state !== 'idle' || this.player.items[type] <= 0) return;
+    if (type === 'potion') {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.actor.heal);
+      this.player.items.potion--;
+      AudioSys.item();
+      this.feedback = '使用藥水，回復 30 HP。'; this.feedbackClass='correct'; this.showFeedback();
+      this.flashHp('heal');
+    } else if (type === 'hint') {
+      this.player.items.hint--;
+      AudioSys.item();
+      this.hintUsed = true;
+      const step = this.question.steps && this.question.steps[0] ? this.question.steps[0] : '想想怎麼化簡根式。';
+      this.feedback = '💡 提示：' + step; this.feedbackClass='correct'; this.showFeedback();
+    } else if (type === 'skip') {
+      this.player.items.skip--;
+      AudioSys.item();
+      this.feedback = '使用跳題卡，直接命中！'; this.feedbackClass='correct'; this.showFeedback();
+      this.hideSpeech();
+      this.monster.currentHp -= 25;
+      if (this.monster.currentHp <= 0) this.monster.currentHp = 0;
+      this.monsterHitFlash = 200;
+      this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-25', '#ffffff', 24);
+      if (this.monster.currentHp <= 0) this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30);
+      this.updateUI();
+      this.state = 'playerAttack';
+      this.player.sprite = new SheetSprite(this.actor.sheets.attack);
+      this.player.sprite.reset();
+      this.animTime = 0;
+      this.scheduleEffect(() => {
+        const fx = new FxSprite(ASSETS.fx.explosion); fx.start();
+        this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.62, y: this.floorY()-50, size:70 });
+        AudioSys.attack();
+      }, 250);
+    }
+    this.updateUI();
+  },
+  gameOver() {
+    AudioSys.wrong();
+    this.saveBest();
+    this.state = 'gameover';
+    this.hideCoach();
+    revealScreen('gameover-screen');
+    const sk = $('gameover-skull'); sk.classList.remove('show'); void sk.offsetWidth; sk.classList.add('show');
+    flashRed();
+    $('gameover-msg').innerHTML = `你到達了第 ${this.layer} 層，擊敗了 ${this.totalDefeated()} 隻怪物。<br>最佳紀錄：${this.best} 分`;
+  },
+  victory(msg) {
+    AudioSys.win();
+    this.saveBest();
+    this.state = 'victory';
+    this.hideCoach();
+    $('victory-title').textContent = this.mode === 'practice' ? '🏆 練習完成！' : '🏆 通關！';
+    revealScreen('victory-screen');
+    VictoryFx.start();
+    const head = msg ? msg + '<br>' : (this.mode === 'practice' ? '你完成了這個題型的練習。<br>' : '你成功打敗了地下城的所有怪物。<br>');
+    $('victory-stats').innerHTML = head + `總擊敗怪物：${this.totalDefeated()}<br>最佳紀錄：${this.best} 分`;
+  },
+  totalDefeated() {
+    let c = 0;
+    for (let i=0; i<this.layer-1; i++) c += LAYERS[i].monsters.length;
+    c += this.monsterIdx;
+    return c;
+  },
+  setupKeyboard() {
+    const keys = document.querySelectorAll('.key');
+    keys.forEach(k => k.addEventListener('click', () => this.onKey(k.dataset.key)));
+    const cbtn = $('continue-btn'); if (cbtn) cbtn.addEventListener('click', () => this.continueGame());
+    document.addEventListener('keydown', e => {
+      if (this.state === 'result') {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.continueGame(); }
+        return;
+      }
+      if (e.key === 'Enter') this.onKey('ATTACK');
+      else if (e.key === 'Backspace') this.onKey('BS');
+      else if (/^[0-9]$/.test(e.key)) this.onKey(e.key);
+      else if (e.key === '-') this.onKey('-');
+      else if (e.key === 'v' || e.key === 'V' || e.key === '√') this.onKey('√');
+      else if (e.key.toLowerCase() === 'c') this.onKey('CLR');
+    });
+  },
+  onKey(k) {
+    AudioSys.unlock();
+    if (this.state !== 'idle' && k !== 'BS' && k !== 'CLR') return;
+    if (k === 'BS') this.answer = this.answer.slice(0, -1);
+    else if (k === 'CLR') this.answer = '';
+    else if (k === 'ATTACK') { this.submitAnswer(); return; }
+    else if (k === '-') { if (this.answer === '') this.answer = '-'; }
+    else if (this.answer.length < 12) this.answer += k;
+    this.updateAnswerPreview();
+    if (k !== 'BS' && k !== 'CLR' && k !== 'ATTACK') {
+      const ap = $('answer-preview'); ap.classList.remove('typed'); void ap.offsetWidth; ap.classList.add('typed');
+    }
+  },
+  setupItems() {
+    $('item-potion').addEventListener('click', () => this.useItem('potion'));
+    $('item-hint').addEventListener('click', () => this.useItem('hint'));
+    $('item-skip').addEventListener('click', () => this.useItem('skip'));
+  },
+  updateUI() {
+    const totalLayers = this.activeLayers().length;
+    $('layer-num').textContent = Math.min(this.layer, totalLayers);
+    $('layer-total').textContent = totalLayers;
+    $('monster-num').textContent = this.monsterIdx + 1;
+    $('monster-total').textContent = this.currentLayerTotal();
+    $('hp-text').textContent = `${this.player.hp} / ${this.player.maxHp}`;
+    $('hp-inner').style.width = (this.player.hp/this.player.maxHp*100) + '%';
+    $('cnt-potion').textContent = this.player.items.potion;
+    $('cnt-hint').textContent = this.player.items.hint;
+    $('cnt-skip').textContent = this.player.items.skip;
+    ['potion','hint','skip'].forEach(t => {
+      const el = $('item-'+t); if (this.player.items[t] <= 0) el.classList.add('disabled'); else el.classList.remove('disabled');
+    });
+  },
+  floorY() { return this.canvas.height/window.devicePixelRatio * 0.78; },
+  playerX() { return this.canvas.width/window.devicePixelRatio * 0.22; },
+  monsterX() { return this.canvas.width/window.devicePixelRatio * 0.65; },
+  loop(timestamp) {
+    const dt = timestamp - this.lastTime; this.lastTime = timestamp;
+    this.update(dt); this.draw();
+    requestAnimationFrame(t => this.loop(t));
+  },
+  update(dt) {
+    if (this.player.sprite) this.player.sprite.update(dt);
+    if (this.monster.sprite) this.monster.sprite.update(dt);
+    this.effects.forEach(e => e.fx.update(dt));
+    this.effects = this.effects.filter(e => e.fx.active);
+    if (this.monsterHitFlash > 0) this.monsterHitFlash -= dt;
+    this.updatePopups(dt);
+
+    if (this.state === 'walk') {
+      this.walkElapsed += dt;
+      this.bgScroll += dt * 0.6;
+      if (this.walkElapsed >= 650 / this.actor.spd) this.proceedToNext();
+    } else if (this.state === 'monsterTelegraph') {
+      this.telegraphElapsed += dt;
+      if (this.telegraphElapsed >= 520) this.doMonsterHit();
+    } else if (this.state === 'playerAttack') {
+      this.animTime += dt;
+      if (this.player.sprite.done) {
+        this.enterResult();   // 答對後統一進 result（顯示解題步驟 + 繼續），擊殺也按繼續後才播放死亡
+      }
+    }
+  },
+  layerTint() {
+    const tints = [null,'rgba(40,70,130,0.10)','rgba(70,40,120,0.12)','rgba(120,40,70,0.14)','rgba(150,60,30,0.16)','rgba(140,30,30,0.20)','rgba(90,20,40,0.22)','rgba(60,20,60,0.24)'];
+    return tints[this.layer] || null;
+  },
+  drawMonsterHp(ctx, mx, my, h) {
+    const bw = Math.max(50, h*0.7), bh = 7;
+    const bx = mx + h*0.45 - bw/2;
+    const by = my - 16;
+    if (this.monster.boss) {
+      ctx.save();
+      ctx.fillStyle = '#ffcc00';
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('★ BOSS ★', bx + bw/2, by - 7);
+      ctx.restore();
+    }
+    ctx.fillStyle = '#222'; ctx.fillRect(bx-1, by-1, bw+2, bh+2);
+    const ratio = Math.max(0, this.monster.currentHp / this.monster.maxHp);
+    ctx.fillStyle = ratio > 0.3 ? '#5cd65c' : '#e04545';
+    ctx.fillRect(bx, by, bw*ratio, bh);
+  },
+  spawnPopup(x, y, text, color, size) {
+    this.popups.push({ x, y, vy: -0.04, life: 1, text, color, size: size || 22 });
+  },
+  updatePopups(dt) {
+    this.popups.forEach(p => { p.y += p.vy * dt * 0.06; p.life -= dt * 0.0011; });
+    this.popups = this.popups.filter(p => p.life > 0);
+  },
+  maybeShowCoach() {
+    let done = false;
+    try { done = localStorage.getItem('realDungeonCoach') === '1'; } catch(e){}
+    if (this.mode !== 'campaign' || this.layer !== 1 || this.monsterIdx !== 0 || done) return;
+    this.coachActive = true;
+    const ap = $('answer-preview'); if (ap) ap.classList.add('coach');
+    const atk = document.querySelector('.key.action'); if (atk) atk.classList.add('coach');
+    const tip = $('coach-tip'); if (tip) tip.classList.add('show');
+  },
+  hideCoach() {
+    if (!this.coachActive) return;
+    this.coachActive = false;
+    const ap = $('answer-preview'); if (ap) ap.classList.remove('coach');
+    const atk = document.querySelector('.key.action'); if (atk) atk.classList.remove('coach');
+    const tip = $('coach-tip'); if (tip) tip.classList.remove('show');
+    try { localStorage.setItem('realDungeonCoach', '1'); } catch(e){}
+  },
+  flashHp(kind) {
+    const el = $('hp-fill');
+    const cls = kind === 'heal' ? 'hp-heal' : 'hp-hit';
+    el.classList.remove('hp-hit', 'hp-heal'); void el.offsetWidth; el.classList.add(cls);
+    setTimeout(() => el.classList.remove(cls), 440);
+  },
+  draw() {
+    const ctx = this.ctx;
+    const W = this.canvas.width/window.devicePixelRatio;
+    const H = this.canvas.height/window.devicePixelRatio;
+    ctx.clearRect(0,0,W,H);
+
+    // background (parallax scroll during walk)
+    const bgSrc = ASSETS.layerBgs[Math.min(this.layer-1, ASSETS.layerBgs.length-1)] || ASSETS.bg;
+    const bg = loadedImages[bgSrc] || loadedImages[ASSETS.bg];
+    if (bg && bg.complete) {
+      const scale = H / bg.height;
+      const dw = bg.width*scale, dh = bg.height*scale;
+      const off = -((this.bgScroll) % dw);
+      for (let x = off - dw; x < W + dw; x += dw) ctx.drawImage(bg, x, 0, dw, dh);
+    } else {
+      ctx.fillStyle = '#0f0f18'; ctx.fillRect(0,0,W,H);
+    }
+
+    // layered depth tint
+    const tint = this.layerTint();
+    if (tint) { ctx.fillStyle = tint; ctx.fillRect(0,0,W,H); }
+
+    // floor
+    const fy = this.floorY();
+    ctx.fillStyle = '#151520'; ctx.fillRect(0, fy, W, H-fy);
+    ctx.strokeStyle = '#2a2a3a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0,fy); ctx.lineTo(W,fy); ctx.stroke();
+
+    // player (strides forward during walk)
+    let px = this.playerX();
+    if (this.state === 'walk') px += W * 0.14 * Math.min(1, this.walkElapsed/650);
+    const py = fy - this.actor.height;
+    if (this.player.sprite) this.player.sprite.draw(ctx, px, py, this.actor.height, true);
+
+    // monster
+    if (this.monster.sprite && ['idle','playerAttack','monsterAttack','monsterTelegraph','result'].includes(this.state)) {
+      let mx = this.monsterX();
+      const my = fy - this.monster.height;
+      if (this.monsterHitFlash > 0) mx += (Math.random()*6 - 3);
+      this.monster.sprite.draw(ctx, mx, my, this.monster.height, this.monster.flip);
+      if (this.monsterHitFlash > 0) {
+        const mw = this.monster.height * 0.9;
+        ctx.save();
+        ctx.globalAlpha = 0.55 * Math.min(1, this.monsterHitFlash/200);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(mx - 6, my - 6, mw + 12, this.monster.height + 12);
+        ctx.restore();
+      }
+      this.drawMonsterHp(ctx, mx, my, this.monster.height);
+      if (this.state === 'monsterTelegraph') {
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 70);
+        const w = this.monster.height * 0.9;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255,60,60,${0.5 + 0.4 * pulse})`;
+        ctx.lineWidth = 3;
+        const rr = w * 0.6 + pulse * 10;
+        ctx.beginPath(); ctx.arc(mx + w/2, my + this.monster.height/2, rr, 0, Math.PI*2); ctx.stroke();
+        ctx.globalAlpha = 0.7 + 0.3 * pulse;
+        ctx.fillStyle = '#ffcc00';
+        ctx.font = `bold ${Math.round(this.monster.height*0.5)}px 'Courier New', monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText('！', mx + w/2, my - 22);
+        ctx.restore();
+      }
+    }
+
+    // effects
+    this.effects.forEach(e => e.fx.draw(ctx, e.x, e.y, e.size));
+
+    // 暗角（vignette）
+    drawVignette(ctx, W, H, 0.6);
+
+    // 命中飄字
+    this.popups.forEach(p => {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.font = `bold ${p.size}px 'Courier New', monospace`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+      ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, p.x, p.y);
+      ctx.restore();
+    });
+
+    // HUD：層數 / 怪物數（畫在地下城左上角）
+    ctx.save();
+    ctx.font = "bold 16px 'Courier New', monospace";
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const totalLayers = this.activeLayers().length;
+    const hud1 = `第 ${this.layer} 層 / ${totalLayers}`;
+    const hud2 = `怪物 ${this.monsterIdx + 1} / ${this.currentLayerTotal()}`;
+    const pad = 10;
+    const bw = Math.max(hud1.length, hud2.length) * 10 + pad * 2;
+    const bh = 48;
+    ctx.fillStyle = 'rgba(10,10,16,0.55)';
+    ctx.fillRect(10, 10, bw, bh);
+    ctx.strokeStyle = 'rgba(255,204,0,0.5)'; ctx.lineWidth = 1.5; ctx.strokeRect(10, 10, bw, bh);
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillText(hud1, 10 + pad, 10 + 15);
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillText(hud2, 10 + pad, 10 + 33);
+    ctx.restore();
+  }
+};
+
+/* ---------- title screen animated cover ---------- */
+const TitleScene = {
+  canvas: null, ctx: null, W: 0, H: 0, raf: 0, lastT: 0,
+  particles: [], warrior: null, bg: null, actor: null,
+  init() {
+    this.canvas = $('title-canvas');
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    this.loadActor(getSelectedActor());
+    this.lastT = performance.now();
+    this.loop(this.lastT);
+  },
+  loadActor(actor) {
+    if (!actor) return;
+    this.actor = actor;
+    Promise.all([loadImage('assets/bg/title_bg.png'), loadImage(actor.sheets.idle.src)]).then(() => {
+      this.bg = loadedImages['assets/bg/title_bg.png'];
+      this.warrior = new SheetSprite(actor.sheets.idle);
+      this.warrior.loop = true; this.warrior.speed = 240;
+    }).catch(() => {});
+  },
+  resize() {
+    if (!this.canvas) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    this.W = rect.width; this.H = rect.height;
+    this.canvas.width = Math.max(1, rect.width * dpr);
+    this.canvas.height = Math.max(1, rect.height * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  },
+  update(dt) {
+    if (this.warrior) this.warrior.update(dt);
+    this.particles.forEach(p => { p.x += p.vx * dt * 0.05; p.y += p.vy * dt * 0.05; p.life -= dt * 0.0008; });
+    this.particles = this.particles.filter(p => p.life > 0 && p.y > -20);
+  },
+  draw() {
+    const ctx = this.ctx, W = this.W, H = this.H;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0a0a10'; ctx.fillRect(0, 0, W, H);
+    const bg = this.bg;
+    if (bg && bg.complete) {
+      const scale = H / bg.height;
+      const dw = bg.width * scale, dh = bg.height * scale;
+      for (let x = 0; x < W + dw; x += dw) ctx.drawImage(bg, x, 0, dw, dh);
+    }
+    const fy = H * 0.82;
+    const fg = ctx.createLinearGradient(0, fy, 0, H);
+    fg.addColorStop(0, '#15151f'); fg.addColorStop(1, '#08080c');
+    ctx.fillStyle = fg; ctx.fillRect(0, fy, W, H - fy);
+    ctx.strokeStyle = '#2a2a3a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(W, fy); ctx.stroke();
+    if (this.warrior && this.actor) {
+      const pScale = Math.min(3.6, (W * 0.5) / this.actor.sheets.idle.fw);
+      const wx = W * 0.5 - this.actor.sheets.idle.fw * pScale / 2;
+      const wy = fy - this.actor.sheets.idle.fh * pScale;
+      this.warrior.draw(ctx, wx, wy, this.actor.sheets.idle.fh * pScale, true);
+    }
+    drawVignette(ctx, W, H, 0.8);
+  },
+  loop(t) {
+    const dt = t - this.lastT; this.lastT = t;
+    if ($('start-screen').style.display !== 'none') {
+      this.update(Math.min(dt, 50)); this.draw();
+      this.raf = requestAnimationFrame(t2 => this.loop(t2));
+    } else { this.raf = 0; }
+  }
+};
+
+/* ---------- screen helpers: fade / banner / flash / victory fx ---------- */
+function fadeTransition(mid) {
+  const f = $('fade');
+  f.classList.add('on');
+  setTimeout(() => {
+    if (mid) mid();
+    requestAnimationFrame(() => f.classList.remove('on'));
+  }, 340);
+}
+function revealScreen(id) {
+  const el = $(id);
+  el.style.display = 'flex';
+  el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in');
+}
+function showLayerBanner(n) {
+  const b = $('layer-banner');
+  b.textContent = '▼ 第 ' + n + ' 層 ▼';
+  b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+}
+function flashRed() {
+  const f = $('dmg-flash');
+  f.classList.add('on');
+  setTimeout(() => f.classList.remove('on'), 130);
+}
+const VictoryFx = {
+  canvas: null, ctx: null, W: 0, H: 0, raf: 0, lastT: 0,
+  bg: null, hero: null, actor: null, heroX: 0, heroSpeed: 0,
+  init() {
+    this.canvas = $('victory-canvas');
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    loadImage('assets/bg/backwin.png').then(img => { this.bg = img; }).catch(() => {});
+  },
+  resize() {
+    if (!this.canvas) return;
+    const r = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    this.W = r.width; this.H = r.height;
+    this.canvas.width = Math.max(1, r.width * dpr);
+    this.canvas.height = Math.max(1, r.height * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  },
+  start() {
+    this.resize(); // 確保 victory-screen 顯示後 canvas 尺寸正確
+    this.actor = getSelectedActor();
+    // 使用朝右的側面走路列（row 2），只取前 3 幀，避免播到受傷/其他動作
+    const rightRunCfg = Object.assign({}, this.actor.sheets.run, { row: 2, frames: 3, startFrame: 0, speed: 90 });
+    this.hero = new SheetSprite(rightRunCfg);
+    this.hero.loop = true;
+    this.hero.speed = 90;
+    this.hero.reset();
+    const scale = (this.actor.height * 1.4) / this.actor.sheets.run.fh;
+    const heroW = this.actor.sheets.run.fw * scale;
+    this.heroX = -heroW;
+    this.heroSpeed = Math.max(0.03, this.W / 8000);
+    this.lastT = performance.now();
+    this.loop(this.lastT);
+  },
+  update(dt) {
+    if (this.hero) this.hero.update(dt);
+    if (this.actor) {
+      this.heroX += this.heroSpeed * dt;
+      const scale = (this.actor.height * 1.4) / this.actor.sheets.run.fh;
+      const heroW = this.actor.sheets.run.fw * scale;
+      if (this.heroX > this.W + heroW) this.heroX = -heroW;
+    }
+  },
+  draw() {
+    if (this.W <= 0 || this.H <= 0) this.resize();
+    const c = this.ctx, W = this.W, H = this.H;
+    c.clearRect(0, 0, W, H);
+    if (this.bg && this.bg.complete) {
+      c.drawImage(this.bg, 0, 0, W, H);
+    } else {
+      c.fillStyle = '#1a1520';
+      c.fillRect(0, 0, W, H);
+    }
+    if (this.hero && this.actor) {
+      const heroH = this.actor.height * 1.4;
+      const heroY = H * 0.78 - heroH;
+      this.hero.draw(c, this.heroX, heroY, heroH, false);
+    }
+  },
+  loop(t) {
+    const dt = t - this.lastT; this.lastT = t;
+    if ($('victory-screen').style.display !== 'none') {
+      this.update(Math.min(dt, 50)); this.draw();
+      this.raf = requestAnimationFrame(t2 => this.loop(t2));
+    } else { this.raf = 0; }
+  }
+};
+
+/* ---------- boot ---------- */
+let selectedDifficulty = 'normal';
+document.querySelectorAll('#diff-row .opt').forEach(b => b.addEventListener('click', () => {
+  selectedDifficulty = b.dataset.diff;
+  document.querySelectorAll('#diff-row .opt').forEach(x => x.classList.remove('selected'));
+  b.classList.add('selected');
+  updateDifficultyLabel();
+  closeDifficultyScreen();
+}));
+function anyOverlayOpen() {
+  return ['difficulty-screen','practice-screen','actor-screen','game-screen','victory-screen','gameover-screen']
+    .some(id => { const el = $(id); return el && el.style.display === 'flex'; });
+}
+function updateTopbar() {
+  const top = $('topbar');
+  if (!top) return;
+  const onStart = $('start-screen').style.display !== 'none';
+  top.style.display = (onStart && !anyOverlayOpen()) ? 'flex' : 'none';
+}
+
+function launch(mode, ptype) {
+  AudioSys.unlock();
+  Game.mode = mode; Game.practiceType = ptype; Game.difficulty = selectedDifficulty;
+  LAYERS = generateLayers();
+  loadAssets().then(() => {
+    fadeTransition(() => {
+      $('start-screen').style.display = 'none';
+      $('actor-screen').style.display = 'none';
+      $('difficulty-screen').style.display = 'none';
+      $('practice-screen').style.display = 'none';
+      $('game-screen').style.display = 'flex';
+      document.body.classList.add('in-game');
+      updateTopbar();
+      Game.init();
+    });
+  });
+}
+function updateActorLabel() {
+  const actor = getSelectedActor();
+  const el = $('actor-label');
+  if (el) el.textContent = '當前角色：' + actor.name + '（' + actor.role + '・HP ' + actor.maxHp + '）';
+}
+function buildActorScreen() {
+  const grid = $('actor-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const selected = getSelectedActor();
+  for (const actor of ASSETS.actors) {
+    const card = document.createElement('div');
+    card.className = 'actor-card' + (actor.id === selected.id ? ' selected' : '');
+    card.dataset.id = actor.id;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'actor-preview';
+    canvas.width = 96; canvas.height = 96;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, 48, 48, 0, 0, 96, 96);
+    img.src = actor.sheets.idle.src;
+    const left = document.createElement('div'); left.className = 'actor-left';
+    const name = document.createElement('div'); name.className = 'actor-name'; name.textContent = actor.name;
+    const hp = document.createElement('div'); hp.className = 'actor-hp'; hp.textContent = 'HP ' + actor.maxHp;
+    left.appendChild(canvas); left.appendChild(name); left.appendChild(hp);
+    const params = document.createElement('div'); params.className = 'actor-params';
+    params.innerHTML =
+      '<span class="ap-role">' + actor.role + '</span>' +
+      '<span class="ap-row"><i>攻擊</i>' + actor.atk + '</span>' +
+      '<span class="ap-row"><i>減傷</i>' + Math.round(actor.def*100) + '%</span>' +
+      '<span class="ap-row"><i>速度</i>' + actor.spd.toFixed(2) + '</span>' +
+      '<span class="ap-row"><i>藥水</i>' + actor.heal + '</span>' +
+      '<span class="ap-items">初始道具：' + actor.items.potion + '藥 ' + actor.items.hint + '提 ' + actor.items.skip + '跳</span>';
+    card.appendChild(left); card.appendChild(params);
+    card.addEventListener('click', () => selectActor(actor.id));
+    grid.appendChild(card);
+  }
+  updateActorLabel();
+}
+function selectActor(id) {
+  try { localStorage.setItem('realDungeonActor', id); } catch(e){}
+  const actor = ASSETS.actors.find(a => a.id === id);
+  if (actor) { TitleScene.loadActor(actor); updateActorLabel(); }
+  closeActorScreen();
+}
+function openActorScreen() { buildActorScreen(); $('actor-screen').style.display = 'flex'; updateTopbar(); }
+function closeActorScreen() { $('actor-screen').style.display = 'none'; updateTopbar(); }
+const cc = $('coach-close'); if (cc) cc.addEventListener('click', () => Game.hideCoach());
+$('start-btn').addEventListener('click', () => launch('campaign', null));
+document.querySelectorAll('#ptype-row .opt').forEach(b => b.addEventListener('click', () => { closePracticeScreen(); launch('practice', b.dataset.ptype); }));
+$('retry-btn').addEventListener('click', () => location.reload());
+$('restart-btn').addEventListener('click', () => location.reload());
+function openDifficultyScreen() {
+  document.querySelectorAll('#diff-row .opt').forEach(x => x.classList.toggle('selected', x.dataset.diff === selectedDifficulty));
+  $('difficulty-screen').style.display = 'flex';
+  updateTopbar();
+}
+function closeDifficultyScreen() { $('difficulty-screen').style.display = 'none'; updateTopbar(); }
+function openPracticeScreen() { $('practice-screen').style.display = 'flex'; updateTopbar(); }
+function closePracticeScreen() { $('practice-screen').style.display = 'none'; updateTopbar(); }
+function updateDifficultyLabel() {
+  const names = { easy:'輕鬆', normal:'普通', hard:'挑戰' };
+  const el = $('difficulty-label');
+  if (el) el.textContent = '當前難度：' + (names[selectedDifficulty] || '普通');
+}
+const dbtn = $('difficulty-btn'); if (dbtn) dbtn.addEventListener('click', openDifficultyScreen);
+const dback = $('difficulty-back'); if (dback) dback.addEventListener('click', closeDifficultyScreen);
+const pbtn = $('practice-btn'); if (pbtn) pbtn.addEventListener('click', openPracticeScreen);
+const pback = $('practice-back'); if (pback) pback.addEventListener('click', closePracticeScreen);
+const abtn = $('actor-btn'); if (abtn) abtn.addEventListener('click', openActorScreen);
+const topMute = $('mute-btn');
+if (topMute) topMute.addEventListener('click', () => {
+  const m = AudioSys.toggleMute();
+  topMute.textContent = m ? '🔇' : '🔊';
+  topMute.classList.toggle('active', m);
+});
+const topFs = $('fs-btn');
+if (topFs) topFs.addEventListener('click', () => {
+  const req = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+  const exit = document.exitFullscreen || document.webkitExitFullscreen;
+  if (!document.fullscreenElement && req) req.call(document.documentElement);
+  else if (exit) exit.call(document);
+});
+document.addEventListener('fullscreenchange', () => {
+  if (topFs) topFs.textContent = document.fullscreenElement ? '⤡' : '⛶';
+});
+const aback = $('actor-back'); if (aback) aback.addEventListener('click', closeActorScreen);
+
+/* 全域點擊音效：任何按鈕 / 選項 / 角色卡 / 虛擬鍵盤都會發出回饋音（靜音時不響） */
+document.addEventListener('click', (e) => {
+  const el = (e.target && e.target.closest) ? e.target.closest('button, .opt, .actor-card, .key') : null;
+  if (!el) return;
+  if (el.classList.contains('action') || el.classList.contains('item-slot')) return; // 攻擊鍵與道具欄已有專屬音效，避免重疊
+  AudioSys.unlock();
+  AudioSys.uiClick();
+});
+
+updateActorLabel();
+updateDifficultyLabel();
+updateTopbar();
+
+/* ---------- 隱藏測試模式（僅開發者用，玩家不受影響） ----------
+   啟用方式：網址加上 ?debug=1  或  #debug
+   例：index.html?debug=1
+   面板功能：跳關(1-7)、直接到該層Boss、秒殺當前怪、無敵、補滿血+道具、顯示答案
+   快捷鍵（進遊戲後）：1-7 跳關、B 該層Boss、K 秒殺、G 無敵、H 補給、A 答案 */
+const DEBUG = {
+  on: false,
+  invincible: false,
+  toBoss: false,
+  _pending: null,
+  init() {
+    try {
+      const q = new URLSearchParams(location.search);
+      if (q.get('debug') === '1' || /(^|[#&])debug\b/.test(location.hash)) this.on = true;
+    } catch (e) {}
+    if (!this.on) return;
+    this.injectStyle();
+    this.buildPanel();
+    this.bindKeys();
+  },
+  inGame() { return document.body.classList.contains('in-game'); },
+  injectStyle() {
+    const css = `
+      #debug-panel { position: fixed; right: 10px; bottom: 10px; z-index: 900;
+        background: rgba(15,18,28,0.92); border: 1px solid #3a4a6a; border-radius: 10px;
+        padding: 10px; width: 224px; font: 12px/1.4 -apple-system,'Segoe UI',sans-serif;
+        color: #dfe6f2; box-shadow: 0 6px 20px rgba(0,0,0,0.5); user-select: none; }
+      #debug-panel .dbg-title { font-weight: 700; color: #ffcc55; margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center; }
+      #debug-panel .dbg-title span.close { cursor: pointer; color:#889; font-weight:400; }
+      #debug-panel .dbg-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; align-items: center; }
+      #debug-panel button { background:#28324a; color:#e6ecf7; border:1px solid #44557a; border-radius:6px;
+        padding:4px 7px; cursor:pointer; font-size:12px; }
+      #debug-panel button:hover { background:#33436a; }
+      #debug-panel button.on { background:#c0392b; border-color:#e05545; color:#fff; }
+      #debug-panel .layer-btn { min-width: 26px; }
+      #debug-panel label { display:flex; align-items:center; gap:4px; cursor:pointer; }
+      #debug-panel .dbg-ans { margin-top:4px; padding:5px 6px; background:#10151f; border-radius:6px;
+        min-height:16px; color:#7ee787; font-family:'Courier New',monospace; word-break:break-all; }
+      #debug-panel .dbg-hint { margin-top:6px; color:#7a8aa5; font-size:10px; line-height:1.5; }
+      #debug-fab { position: fixed; right: 10px; bottom: 10px; z-index: 900; width: 34px; height: 34px;
+        border-radius: 50%; background: rgba(15,18,28,0.85); border:1px solid #3a4a6a; color:#ffcc55;
+        cursor:pointer; font-size:16px; display:none; }
+    `;
+    const style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
+  },
+  buildPanel() {
+    const p = document.createElement('div');
+    p.id = 'debug-panel';
+    p.innerHTML =
+      '<div class="dbg-title">🐞 測試面板<span class="close" title="收合">—</span></div>' +
+      '<div class="dbg-row"><span>跳關：</span>' +
+        [1,2,3,4,5,6,7].map(n => `<button class="layer-btn" data-layer="${n}">${n}</button>`).join('') +
+      '</div>' +
+      '<div class="dbg-row"><label><input type="checkbox" id="dbg-boss"> 直接到該層 Boss</label></div>' +
+      '<div class="dbg-row">' +
+        '<button id="dbg-kill">💀 秒殺 (K)</button>' +
+        '<button id="dbg-boss-now">👑 本層Boss (B)</button>' +
+      '</div>' +
+      '<div class="dbg-row">' +
+        '<button id="dbg-invin">🛡 無敵：關 (G)</button>' +
+        '<button id="dbg-heal">❤ 補給 (H)</button>' +
+      '</div>' +
+      '<div class="dbg-row"><button id="dbg-ans-btn">👁 顯示答案 (A)</button></div>' +
+      '<div class="dbg-ans" id="dbg-ans">答案：—</div>' +
+      '<div class="dbg-hint">快捷鍵：1-7跳關・B本層Boss・K秒殺・G無敵・H補給・A答案</div>';
+    document.body.appendChild(p);
+
+    const fab = document.createElement('button');
+    fab.id = 'debug-fab'; fab.textContent = '🐞'; fab.title = '展開測試面板';
+    document.body.appendChild(fab);
+
+    p.querySelector('.close').addEventListener('click', () => { p.style.display = 'none'; fab.style.display = 'block'; });
+    fab.addEventListener('click', () => { p.style.display = 'block'; fab.style.display = 'none'; });
+
+    p.querySelectorAll('.layer-btn').forEach(b =>
+      b.addEventListener('click', () => this.jumpTo(parseInt(b.dataset.layer), $('dbg-boss').checked)));
+    $('dbg-kill').addEventListener('click', () => this.kill());
+    $('dbg-boss-now').addEventListener('click', () => this.jumpTo(Game.layer, true));
+    $('dbg-invin').addEventListener('click', () => this.toggleInvincible());
+    $('dbg-heal').addEventListener('click', () => this.heal());
+    $('dbg-ans-btn').addEventListener('click', () => this.showAnswer());
+  },
+  bindKeys() {
+    document.addEventListener('keydown', e => {
+      if (!this.on) return;
+      // 若焦點在輸入框則略過
+      const tag = (document.activeElement && document.activeElement.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const k = e.key.toLowerCase();
+      if (/^[1-7]$/.test(e.key)) { this.jumpTo(parseInt(e.key), $('dbg-boss') && $('dbg-boss').checked); }
+      else if (k === 'b') { if (this.inGame()) this.jumpTo(Game.layer, true); }
+      else if (k === 'k') { this.kill(); }
+      else if (k === 'g') { this.toggleInvincible(); }
+      else if (k === 'h') { this.heal(); }
+      else if (k === 'a') { this.showAnswer(); }
+      else return;
+    });
+  },
+  jumpTo(n, boss) {
+    if (this.inGame()) { this.apply(n, boss); }
+    else { this._pending = { n, boss }; launch('campaign', null); }
+  },
+  apply(n, boss) {
+    if (!this.inGame()) return;
+    Game.mode = 'campaign';
+    Game.layer = Math.max(1, Math.min(n, LAYERS.length));
+    const total = LAYERS[Game.layer - 1].monsters.length;
+    Game.monsterIdx = boss ? total - 1 : 0;
+    Game.player.hp = Game.player.maxHp;
+    const kb = $('keypad'); if (kb) kb.style.display = '';
+    const cb = $('continue-btn'); if (cb) cb.style.display = 'none';
+    const fb = $('feedback'); if (fb) fb.style.display = 'none';
+    Game.startBattle();
+    Game.updateUI();
+    showLayerBanner(Game.layer);
+  },
+  kill() {
+    if (!this.inGame() || !Game.monster) return;
+    if (['walk','monsterDie','victory','gameover'].includes(Game.state)) return;
+    Game.monster.currentHp = 0;
+    Game.state = 'idle';
+    const kb = $('keypad'); if (kb) kb.style.display = '';
+    const cb = $('continue-btn'); if (cb) cb.style.display = 'none';
+    const fb = $('feedback'); if (fb) fb.style.display = 'none';
+    Game.advanceMonster();   // 播死亡→beginWalk→walk→proceedToNext 正常銜接
+  },
+  toggleInvincible() {
+    this.invincible = !this.invincible;
+    const b = $('dbg-invin');
+    if (b) { b.textContent = '🛡 無敵：' + (this.invincible ? '開' : '關') + ' (G)'; b.classList.toggle('on', this.invincible); }
+  },
+  heal() {
+    if (!this.inGame()) return;
+    Game.player.hp = Game.player.maxHp;
+    Game.player.items.potion = 9;
+    Game.player.items.hint = 9;
+    Game.player.items.skip = 9;
+    Game.updateUI();
+  },
+  showAnswer() {
+    const el = $('dbg-ans');
+    if (!el) return;
+    if (!this.inGame() || !Game.question) { el.textContent = '答案：（尚未進入戰鬥）'; return; }
+    el.innerHTML = '答案：' + displayAns(Game.question);
+  }
+};
+
+/* 啟動封面動畫（遊戲開始後自動停止以節省資源） */
+VictoryFx.init();
+DEBUG.init();
+TitleScene.init();
+</script>
+</body>
+</html>
