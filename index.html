@@ -1024,6 +1024,7 @@ const Game = {
     const cb = $('continue-btn'); if (cb) cb.style.display = 'block';
   },
   continueGame() {
+    lockClicks();
     const kb = $('keypad'); if (kb) kb.style.display = '';
     const cb = $('continue-btn'); if (cb) cb.style.display = 'none';
     this.state = 'idle';
@@ -1449,6 +1450,7 @@ function fadeTransition(mid) {
   }, 340);
 }
 function revealScreen(id) {
+  lockClicks();
   const el = $(id);
   el.style.display = 'flex';
   el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in');
@@ -1555,6 +1557,7 @@ function updateTopbar() {
 }
 
 function launch(mode, ptype) {
+  lockClicks();
   AudioSys.unlock();
   Game.mode = mode; Game.practiceType = ptype; Game.difficulty = selectedDifficulty;
   LAYERS = generateLayers();
@@ -1612,26 +1615,28 @@ function buildActorScreen() {
   updateActorLabel();
 }
 function selectActor(id) {
+  lockClicks();
   try { localStorage.setItem('realDungeonActor', id); } catch(e){}
   const actor = ASSETS.actors.find(a => a.id === id);
   if (actor) { TitleScene.loadActor(actor); updateActorLabel(); }
   closeActorScreen();
 }
-function openActorScreen() { buildActorScreen(); $('actor-screen').style.display = 'flex'; updateTopbar(); }
-function closeActorScreen() { $('actor-screen').style.display = 'none'; updateTopbar(); }
+function openActorScreen() { lockClicks(); buildActorScreen(); $('actor-screen').style.display = 'flex'; updateTopbar(); }
+function closeActorScreen() { lockClicks(); $('actor-screen').style.display = 'none'; updateTopbar(); }
 const cc = $('coach-close'); if (cc) cc.addEventListener('click', () => Game.hideCoach());
 $('start-btn').addEventListener('click', () => launch('campaign', null));
 document.querySelectorAll('#ptype-row .opt').forEach(b => b.addEventListener('click', () => { closePracticeScreen(); launch('practice', b.dataset.ptype); }));
 $('retry-btn').addEventListener('click', () => location.reload());
 $('restart-btn').addEventListener('click', () => location.reload());
 function openDifficultyScreen() {
+  lockClicks();
   document.querySelectorAll('#diff-row .opt').forEach(x => x.classList.toggle('selected', x.dataset.diff === selectedDifficulty));
   $('difficulty-screen').style.display = 'flex';
   updateTopbar();
 }
-function closeDifficultyScreen() { $('difficulty-screen').style.display = 'none'; updateTopbar(); }
-function openPracticeScreen() { $('practice-screen').style.display = 'flex'; updateTopbar(); }
-function closePracticeScreen() { $('practice-screen').style.display = 'none'; updateTopbar(); }
+function closeDifficultyScreen() { lockClicks(); $('difficulty-screen').style.display = 'none'; updateTopbar(); }
+function openPracticeScreen() { lockClicks(); $('practice-screen').style.display = 'flex'; updateTopbar(); }
+function closePracticeScreen() { lockClicks(); $('practice-screen').style.display = 'none'; updateTopbar(); }
 function updateDifficultyLabel() {
   const names = { easy:'輕鬆', normal:'普通', hard:'挑戰' };
   const el = $('difficulty-label');
@@ -1668,6 +1673,19 @@ document.addEventListener('click', (e) => {
   AudioSys.unlock();
   AudioSys.uiClick();
 });
+
+/* 防止觸控裝置「點一下變兩下」：畫面切換後，重影的 click 常會落在新畫面同位置的另一顆按鈕，
+   造成重複觸發。這裡在切換時開啟短暫「點擊鎖定窗口」，吞掉隨後約 350ms 內的重影點擊。
+   鍵盤輸入不受影響（切換瞬間鍵盤本就隱藏，且鎖定只在切換時啟動）。 */
+let clickLockUntil = 0;
+function lockClicks(ms) { clickLockUntil = performance.now() + (ms || 350); }
+document.addEventListener('click', (e) => {
+  if (performance.now() < clickLockUntil) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}, true); // 捕獲階段：早於按鈕本身的監聽器，才能攔截重影
+
 
 updateActorLabel();
 updateDifficultyLabel();
