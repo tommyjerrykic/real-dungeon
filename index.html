@@ -58,7 +58,7 @@
   #start-screen > *:not(#title-canvas) { position: relative; z-index: 1; }
   #start-screen h1 { text-shadow: 0 2px 8px #000, 0 0 20px rgba(255,204,0,0.4); }
 
-  #game-screen { display: none; flex: 1; height: 100vh; }
+  #game-screen { display: none; flex: 1; height: 100vh; height: 100dvh; }
   #dungeon {
     flex: 1.6; min-width: 0; position: relative; background: #0f0f18;
     overflow: hidden;
@@ -80,6 +80,7 @@
   #right-panel {
     flex: 1; min-width: 320px; max-width: 460px; display: flex; flex-direction: column;
     background: var(--panel); border-left: 4px solid var(--border);
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
   }
   #status-area {
     flex: 0 0 auto; padding: 12px; border-bottom: 4px solid var(--border); background: var(--panel2);
@@ -128,7 +129,7 @@
   #keypad {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
   }
-  #continue-btn { display: none; margin-top: 16px; }
+  #continue-btn { display: none; margin-top: 16px; position: sticky; bottom: 0; background: var(--panel); z-index: 5; padding-top: 10px; }
   #actor-screen { flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
   #actor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 620px; margin: 20px 0; }
   .actor-card { background: rgba(20,20,30,0.9); border: 2px solid #444; border-radius: 12px; padding: 14px 12px; text-align: left; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 14px; }
@@ -163,10 +164,12 @@
 
   @media (max-width: 780px) {
     #game-screen { flex-direction: column; }
-    #dungeon { flex: 1.2; min-height: 40vh; }
-    #right-panel { max-width: none; min-width: 0; min-height: 45vh; border-left: none; border-top: 4px solid var(--border); }
+    #dungeon { flex: 1 1 auto; min-height: 26vh; }
+    #right-panel { max-width: none; min-width: 0; min-height: 0; flex: 1 1 auto; border-left: none; border-top: 4px solid var(--border); }
     #status-area { flex: 0 0 auto; }
-    #keyboard-area { flex: 1; }
+    #keyboard-area { flex: 0 0 auto; }
+    #feedback { max-height: 28vh; }
+    #keypad { gap: 6px; }
   }
 
   /* ===== 美化強化：轉場 / 教學 / UI 細節 / 結算裝飾 ===== */
@@ -867,6 +870,11 @@ const Game = {
     this.ctx.imageSmoothingEnabled = false;
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    // 平版/手機非全屏時，100vh 會含瀏覽器工具列導致底部被裁；用真實可視高度兜底
+    const fitGameHeight = () => { const gs = document.getElementById('game-screen'); if (gs) gs.style.height = window.innerHeight + 'px'; };
+    window.addEventListener('resize', fitGameHeight);
+    window.addEventListener('orientationchange', fitGameHeight);
+    fitGameHeight();
     this.setupKeyboard();
     this.setupItems();
     this.loadBest();
