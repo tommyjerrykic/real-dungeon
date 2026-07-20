@@ -781,8 +781,10 @@ const QuestionGen = {
     return this.makeInt(Math.round(Math.cbrt(v)), text, [`∛${v} = ${Math.round(Math.cbrt(v))}`]);
   },
   t3() {
-    const k = randInt(2, 9);
-    const m = pick(this.squareFree.slice(0, 30));
+    const k = randInt(2, 7);
+    // 控制 n = k²·m 不超過 500，避免過千難算
+    const cand = this.squareFree.filter(m => k*k*m <= 500);
+    const m = pick(cand);
     const n = k*k*m;
     const text = `化簡 √${n}`;
     const steps = [`√${n} = √(${k}² × ${m})`, `= ${k}√${m}`];
@@ -814,7 +816,7 @@ const QuestionGen = {
     return this.makeRad(k, m, text, steps);
   },
   t6() {
-    const m = pick(this.squareFree.slice(0, 20));
+    const m = pick(this.squareFree.slice(0, 14));
     const k1 = randInt(2, 5), k2 = randInt(2, 5);
     const n1 = k1*k1*m, n2 = k2*k2*m;
     const text = `化簡 √${n1} + √${n2}`;
@@ -837,7 +839,7 @@ const QuestionGen = {
   },
   t8() {
     // 兩步混合：先算 √a × √b（化簡成 k√m），再與 c√m 同類合併
-    const m = pick(this.squareFree.slice(0, 18));
+    const m = pick(this.squareFree.slice(0, 14));
     const k = randInt(2, 5);
     const N = k*k*m;
     let pair = null;
