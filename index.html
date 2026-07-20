@@ -39,6 +39,8 @@
     border-radius: 6px; transition: background .15s, color .15s;
   }
   .btn:hover, .btn:active { background: var(--accent); color: #000; }
+  .btn-icon { display: inline-flex; vertical-align: middle; margin-right: 6px; }
+  .btn-icon img { width: 22px; height: 22px; image-rendering: pixelated; display: block; }
   .btn.mini { margin-top: 14px; padding: 8px 20px; font-size: 0.95rem; }
   #topbar { position: fixed; top: 10px; right: 10px; z-index: 999; display: flex; gap: 8px; }
   .top-btn {
@@ -97,7 +99,8 @@
     touch-action: manipulation;
   }
   .item-slot:active { background: #3a3a4e; }
-  .item-slot .icon { font-size: 1.5rem; line-height: 1; }
+  .item-slot .icon { width: 28px; height: 28px; image-rendering: pixelated; display: inline-block; }
+  .item-slot .icon img { width: 100%; height: 100%; display: block; }
   .item-slot .name { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
   .item-slot .count {
     position: absolute; top: -6px; right: -6px; background: var(--accent); color: #000;
@@ -300,8 +303,8 @@
   <h1>⚔️ 戰利品！</h1>
   <p>擊敗了怪物，選擇一項獎勵帶走（不含跳題卡）：</p>
   <div style="display:flex; gap:24px; margin-top:24px; flex-wrap:wrap; justify-content:center;">
-    <button class="btn" id="reward-potion">🧪 藥水 +1</button>
-    <button class="btn" id="reward-hint">💡 提示卡 +1</button>
+    <button class="btn" id="reward-potion"><span class="btn-icon"><img src="assets/items/potion.png" alt="藥水"></span> 藥水 +1</button>
+    <button class="btn" id="reward-hint"><span class="btn-icon"><img src="assets/items/hint.png" alt="提示卡"></span> 提示卡 +1</button>
   </div>
 </div>
 
@@ -320,10 +323,10 @@
       </div>
       <div id="items-row">
         <div class="item-slot" id="item-potion" title="藥水：回復 30 HP">
-          <div class="icon">🧪</div><div class="name">藥水</div><div class="count" id="cnt-potion">1</div>
+          <div class="icon"><img src="assets/items/potion.png" alt="藥水"></div><div class="name">藥水</div><div class="count" id="cnt-potion">1</div>
         </div>
         <div class="item-slot" id="item-hint" title="提示卡：顯示下一步">
-          <div class="icon">💡</div><div class="name">提示卡</div><div class="count" id="cnt-hint">1</div>
+          <div class="icon"><img src="assets/items/hint.png" alt="提示卡"></div><div class="name">提示卡</div><div class="count" id="cnt-hint">1</div>
         </div>
         <div class="item-slot" id="item-skip" title="跳題卡：跳過此題並攻擊">
           <div class="icon">⏭️</div><div class="name">跳題卡</div><div class="count" id="cnt-skip">0</div>
