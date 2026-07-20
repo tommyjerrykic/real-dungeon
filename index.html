@@ -1117,7 +1117,8 @@ const Game = {
     if (this.monster.currentHp < 0) this.monster.currentHp = 0;
     this.monsterHitFlash = 200;
     this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-' + atk, crit ? '#ffcc00' : '#ffffff', crit ? 28 : 24);
-    if (crit) this.spawnPopup(this.monsterX() + 24, this.floorY() - this.monster.height*1.5, '暴擊!', '#ffcc00', 24);
+    this.impact(50, 5);   // 普通命中：短頓幀 + 輕震
+    if (crit) { this.spawnPopup(this.monsterX() + 24, this.floorY() - this.monster.height*1.5, '暴擊!', '#ffcc00', 24); this.impact(90, 10); }   // 暴擊：長頓幀 + 強震
     // 格鬥家：隨機連擊，答對時有機會追加攻擊（含基礎攻擊共 2~comboMax 下，單次隨機機率遞進）
     if (this.actor.id === 'fighter') {
       const r = Math.random();
@@ -1128,9 +1129,10 @@ const Game = {
           if (this.monster.currentHp < 0) this.monster.currentHp = 0;
         }
         this.spawnPopup(this.monsterX() + 10, this.floorY() - this.monster.height*1.15, '連擊 x' + total, '#ff8c00', 26);
+        this.impact(70, 8);   // 連擊：強化頓幀 + 震動
       }
     }
-    if (this.monster.currentHp <= 0) this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30);
+    if (this.monster.currentHp <= 0) { this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30); this.impact(150, 14); }   // 擊殺：大震動
     this.hideCoach();
     this.updateUI();
     this.scheduleEffect(() => {
@@ -1186,6 +1188,7 @@ const Game = {
     AudioSys.hit();
     this.flashHp('hit');
     this.spawnPopup(this.playerX() + 40, this.floorY() - 92, '-' + dmg, guarded ? '#7CFC00' : '#ff6b6b', 24);
+    this.impact(guarded ? 50 : 70, guarded ? 6 : 9);   // 受擊：頓幀 + 震動（格擋較輕）
     this.updateUI();
     if (guarded) {
       this.feedback += '<br><span class="steps">🛡 劍士格擋成功，傷害減半為 ' + dmg + '。</span>';
@@ -1310,12 +1313,14 @@ const Game = {
         if (this.monster.currentHp <= 0) this.monster.currentHp = 0;
         this.monsterHitFlash = 200;
         this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-' + ba, '#9b6bff', 24);
+        this.impact(45, 5);   // 奧術回饋額外一擊
         const fx = new FxSprite(ASSETS.fx.explosion); fx.start();
         this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.62, y: this.floorY()-50, size:70 });
         AudioSys.attack();
         this.feedback += '<br>奧術回饋：額外攻擊敵人 ' + ba + ' 點！'; this.showFeedback();
         if (this.monster.currentHp <= 0) {
           this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30);
+          this.impact(150, 14);
           this.state = 'playerAttack';
           const kb = $('keypad'); if (kb) kb.style.display = 'none';
           this.updateUI();
@@ -1338,7 +1343,8 @@ const Game = {
       if (this.monster.currentHp <= 0) this.monster.currentHp = 0;
       this.monsterHitFlash = 200;
       this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-25', '#ffffff', 24);
-      if (this.monster.currentHp <= 0) this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30);
+      this.impact(45, 5);
+      if (this.monster.currentHp <= 0) { this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30); this.impact(150, 14); }
       this.updateUI();
       this.state = 'playerAttack';
       this.player.sprite = new SheetSprite(this.actor.sheets.attack);
@@ -1444,8 +1450,11 @@ const Game = {
   playerX() { return this.canvas.width/window.devicePixelRatio * 0.22; },
   monsterX() { return this.canvas.width/window.devicePixelRatio * 0.65; },
   loop(timestamp) {
-    const dt = timestamp - this.lastTime; this.lastTime = timestamp;
-    this.update(dt); this.draw();
+    let dt = timestamp - this.lastTime; this.lastTime = timestamp;
+    if (dt > 50) dt = 50;                        // 切換分頁回來時 dt 暴衝，夾一下
+    if (this.hitStop > 0) this.hitStop -= dt;     // 命中頓幀：凍結邏輯、只重繪，強化打擊感
+    else this.update(dt);
+    this.draw();
     requestAnimationFrame(t => this.loop(t));
   },
   update(dt) {
@@ -1454,6 +1463,7 @@ const Game = {
     this.effects.forEach(e => e.fx.update(dt));
     this.effects = this.effects.filter(e => e.fx.active);
     if (this.monsterHitFlash > 0) this.monsterHitFlash -= dt;
+    if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 0.06);   // 震動逐漸衰減
     this.updatePopups(dt);
 
     if (this.state === 'walk') {
@@ -1493,10 +1503,15 @@ const Game = {
     ctx.fillRect(bx, by, bw*ratio, bh);
   },
   spawnPopup(x, y, text, color, size) {
-    this.popups.push({ x, y, vy: -0.04, life: 1, text, color, size: size || 22 });
+    this.popups.push({ x, y, vy: -0.05, life: 1, text, color, size: size || 22, age: 0, glow: (size || 22) >= 26 });
+  },
+  // 命中打擊感：觸發頓幀（凍結）與畫面震動，取最大值避免被同幀較弱事件覆蓋
+  impact(hitStopMs, shakeMag) {
+    if (hitStopMs > 0) this.hitStop = Math.max(this.hitStop, hitStopMs);
+    if (shakeMag > 0) this.shake = Math.max(this.shake, shakeMag);
   },
   updatePopups(dt) {
-    this.popups.forEach(p => { p.y += p.vy * dt * 0.06; p.life -= dt * 0.0011; });
+    this.popups.forEach(p => { p.y += p.vy * dt * 0.06; p.life -= dt * 0.0011; p.age += dt; });
     this.popups = this.popups.filter(p => p.life > 0);
   },
   maybeShowCoach() {
@@ -1527,6 +1542,13 @@ const Game = {
     const W = this.canvas.width/window.devicePixelRatio;
     const H = this.canvas.height/window.devicePixelRatio;
     ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#0f0f18'; ctx.fillRect(0,0,W,H);   // 兜底底色：畫面震動時避免邊緣露白
+
+    // 畫面震動：整個場景（不含 HUD）隨機偏移，強化打擊感
+    const sx = this.shake > 0.3 ? (Math.random()*2-1) * this.shake : 0;
+    const sy = this.shake > 0.3 ? (Math.random()*2-1) * this.shake : 0;
+    ctx.save();
+    ctx.translate(sx, sy);
 
     // background (parallax scroll during walk)
     const bgSrc = ASSETS.layerBgs[Math.min(this.layer-1, ASSETS.layerBgs.length-1)] || ASSETS.bg;
@@ -1593,18 +1615,27 @@ const Game = {
     // 暗角（vignette）
     drawVignette(ctx, W, H, 0.6);
 
-    // 命中飄字
+    // 命中飄字（帶彈出縮放 + 重要提示發光）
     this.popups.forEach(p => {
+      const k = Math.min(1, p.age / 130);
+      const sc = 1 + 0.55 * (1 - k);          // 由 1.55 彈回 1，做出「pop」感
       ctx.save();
       ctx.globalAlpha = Math.max(0, p.life);
+      ctx.translate(p.x, p.y);
+      ctx.scale(sc, sc);
       ctx.font = `bold ${p.size}px 'Courier New', monospace`;
       ctx.textAlign = 'center';
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-      ctx.strokeText(p.text, p.x, p.y);
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      if (p.glow) { ctx.shadowColor = p.color; ctx.shadowBlur = 14; }
+      ctx.strokeText(p.text, 0, 0);
+      ctx.shadowBlur = 0;
       ctx.fillStyle = p.color;
-      ctx.fillText(p.text, p.x, p.y);
+      ctx.fillText(p.text, 0, 0);
       ctx.restore();
     });
+
+    ctx.restore();   // 結束場景震動，以下 HUD 不受影響
 
     // HUD：層數 / 怪物數（畫在地下城左上角）
     ctx.save();
