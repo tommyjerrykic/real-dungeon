@@ -163,6 +163,9 @@
   .key.sqrt { font-size: 1.7rem; line-height: 1; }
   #keypad .cmp-key { display: none; }
   #keypad.cmp-mode .cmp-key { display: block; }
+  /* 比較題：只留 > < = 與「攻擊」，隱藏數字 / √ / - / 清除 / 退格 */
+  #keypad.cmp-mode .key:not(.cmp-key):not(.action) { display: none; }
+  #keypad.cmp-mode .key.action { grid-column: 1 / -1; margin-top: 4px; }
 
   @media (max-width: 780px) {
     #game-screen { flex-direction: column; }
@@ -337,9 +340,10 @@
         <div class="key sqrt" data-key="√">√</div>
         <div class="key clear" data-key="CLR">清除</div>
         <div class="key" data-key="BS">←</div>
-        <div class="key action" data-key="ATTACK">攻擊</div>
         <div class="key cmp-key" data-key="&gt;">&gt;</div>
         <div class="key cmp-key" data-key="&lt;">&lt;</div>
+        <div class="key cmp-key" data-key="=">=</div>
+        <div class="key action" data-key="ATTACK">攻擊</div>
       </div>
       <button id="continue-btn" class="btn">繼續</button>
     </div>
@@ -832,6 +836,33 @@ const QuestionGen = {
   },
   t9() {
     // 根式比較大小：兩邊平方後比大小
+    if (Math.random() < 0.25) {
+      // 相等變式（讓 = 鍵有意義）：兩邊平方後恰好相等
+      if (Math.random() < 0.5) {
+        // √x 與 整數 y 相等：x = y²
+        const y = randInt(2, 6);
+        const x = y * y;
+        const text = `比較 √${x} 與 ${y} 的大小`;
+        const steps = [
+          `(√${x})² = ${x}`,
+          `${y}² = ${x}`,
+          `因為 ${x} = ${x}，所以 √${x} = ${y}`
+        ];
+        return this.makeCmp('=', text, steps);
+      } else {
+        // a√m 與 √(a²m) 相等，例如 2√2 與 √8（需化簡才看得出）
+        const m = pick(this.squareFree.slice(0, 12));
+        const a = randInt(2, 4);
+        const rad = a * a * m;
+        const text = `比較 ${a}√${m} 與 √${rad} 的大小`;
+        const steps = [
+          `(${a}√${m})² = ${a}²×${m} = ${rad}`,
+          `(√${rad})² = ${rad}`,
+          `因為 ${rad} = ${rad}，所以 ${a}√${m} = √${rad}`
+        ];
+        return this.makeCmp('=', text, steps);
+      }
+    }
     if (Math.random() < 0.5) {
       // 變式 A：a√m 與 b√n 比較
       const m = pick(this.squareFree.slice(0, 12));
@@ -1236,12 +1267,19 @@ const Game = {
         return;
       }
       if (e.key === 'Enter') this.onKey('ATTACK');
-      else if (e.key === 'Backspace') this.onKey('BS');
-      else if (/^[0-9]$/.test(e.key)) this.onKey(e.key);
-      else if (e.key === '-') this.onKey('-');
-      else if (e.key === 'v' || e.key === 'V' || e.key === '√') this.onKey('√');
-      else if (e.key === '>' || e.key === '<') this.onKey(e.key);
-      else if (e.key.toLowerCase() === 'c') this.onKey('CLR');
+      else {
+        const cmp = this.question && this.question.type === 'cmp';
+        if (cmp) {
+          if (e.key === '>' || e.key === '<' || e.key === '=') this.onKey(e.key);
+        } else {
+          if (e.key === 'Backspace') this.onKey('BS');
+          else if (/^[0-9]$/.test(e.key)) this.onKey(e.key);
+          else if (e.key === '-') this.onKey('-');
+          else if (e.key === 'v' || e.key === 'V' || e.key === '√') this.onKey('√');
+          else if (e.key === '>' || e.key === '<' || e.key === '=') this.onKey(e.key);
+          else if (e.key.toLowerCase() === 'c') this.onKey('CLR');
+        }
+      }
     });
   },
   onKey(k) {
@@ -1251,7 +1289,7 @@ const Game = {
     else if (k === 'CLR') this.answer = '';
     else if (k === 'ATTACK') { this.submitAnswer(); return; }
     else if (k === '-') { if (this.answer === '') this.answer = '-'; }
-    else if (k === '>' || k === '<') { this.answer = k; }
+    else if (k === '>' || k === '<' || k === '=') { this.answer = k; }
     else if (this.answer.length < 12) this.answer += k;
     this.updateAnswerPreview();
     if (k !== 'BS' && k !== 'CLR' && k !== 'ATTACK') {
