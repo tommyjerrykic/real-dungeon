@@ -296,6 +296,15 @@
   <button class="btn" id="actor-back">返回</button>
 </div>
 
+<div id="reward-screen" class="screen" style="display:none; z-index:260;">
+  <h1>⚔️ 戰利品！</h1>
+  <p>擊敗了怪物，選擇一項獎勵帶走（不含跳題卡）：</p>
+  <div style="display:flex; gap:24px; margin-top:24px; flex-wrap:wrap; justify-content:center;">
+    <button class="btn" id="reward-potion">🧪 藥水 +1</button>
+    <button class="btn" id="reward-hint">💡 提示卡 +1</button>
+  </div>
+</div>
+
 <!-- MAIN GAME -->
 <div id="game-screen">
   <div id="dungeon">
@@ -363,37 +372,37 @@
 
 const ASSETS = {
   actors: [
-    { id:'sword',   name:'劍士',   role:'均衡',   maxHp:100, height:170, atk:25, def:0.15, spd:1.00, heal:30, items:{potion:1,hint:1,skip:0}, sheets: {
+    { id:'sword',   name:'劍士',   role:'均衡',   maxHp:100, height:170, atk:25, def:0.15, spd:1.00, heal:30, items:{potion:3,hint:3,skip:2}, sheets: {
       idle:   { src:'assets/actors/Actor1_1.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
       run:    { src:'assets/actors/Actor1_1.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
       attack: { src:'assets/actors/Actor1_1.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
       hurt:   { src:'assets/actors/Actor1_1.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
     }},
-    { id:'berserk', name:'狂戰士', role:'暴力',   maxHp:120, height:175, atk:40, def:0.05, spd:0.90, heal:25, items:{potion:1,hint:1,skip:0}, sheets: {
+    { id:'berserk', name:'狂戰士', role:'暴力',   maxHp:120, height:175, atk:40, def:0.05, spd:0.90, heal:25, items:{potion:3,hint:3,skip:2}, sheets: {
       idle:   { src:'assets/actors/Actor1_4.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
       run:    { src:'assets/actors/Actor1_4.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
       attack: { src:'assets/actors/Actor1_4.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
       hurt:   { src:'assets/actors/Actor1_4.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
     }},
-    { id:'mage',    name:'法師',   role:'脆皮炮台', maxHp:80, height:165, atk:30, def:0.06, spd:1.10, heal:35, items:{potion:2,hint:1,skip:0}, sheets: {
+    { id:'mage',    name:'法師',   role:'脆皮炮台', maxHp:80, height:165, atk:30, def:0.06, spd:1.10, heal:35, items:{potion:4,hint:3,skip:2}, sheets: {
       idle:   { src:'assets/actors/Actor1_6.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
       run:    { src:'assets/actors/Actor1_6.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
       attack: { src:'assets/actors/Actor1_6.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
       hurt:   { src:'assets/actors/Actor1_6.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
     }},
-    { id:'cleric',  name:'牧師',   role:'治癒',   maxHp:115, height:168, atk:20, def:0.25, spd:0.95, heal:55, items:{potion:2,hint:1,skip:0}, sheets: {
+    { id:'cleric',  name:'牧師',   role:'治癒',   maxHp:115, height:168, atk:20, def:0.25, spd:0.95, heal:55, items:{potion:4,hint:3,skip:2}, sheets: {
       idle:   { src:'assets/actors/Actor1_7.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
       run:    { src:'assets/actors/Actor1_7.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
       attack: { src:'assets/actors/Actor1_7.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
       hurt:   { src:'assets/actors/Actor1_7.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
     }},
-    { id:'warlock', name:'術士',   role:'輔助',   maxHp:85,  height:168, atk:30, def:0.12, spd:1.00, heal:30, items:{potion:1,hint:2,skip:0}, sheets: {
+    { id:'warlock', name:'術士',   role:'輔助',   maxHp:85,  height:168, atk:30, def:0.12, spd:1.00, heal:30, items:{potion:3,hint:4,skip:2}, sheets: {
       idle:   { src:'assets/actors/Actor1_8.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
       run:    { src:'assets/actors/Actor1_8.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
       attack: { src:'assets/actors/Actor1_8.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
       hurt:   { src:'assets/actors/Actor1_8.png', fw:48, fh:48, row:2, startFrame:6, frames:3, speed:120, loop:false }
     }},
-    { id:'fighter', name:'格鬥家', role:'速攻',   maxHp:110, height:170, atk:26, def:0.12, spd:1.20, heal:30, items:{potion:1,hint:1,skip:1}, sheets: {
+    { id:'fighter', name:'格鬥家', role:'速攻',   maxHp:110, height:170, atk:26, def:0.12, spd:1.20, heal:30, items:{potion:3,hint:3,skip:3}, sheets: {
       idle:   { src:'assets/actors/Actor3_6.png', fw:48, fh:48, row:0, frames:1, speed:120, loop:true },
       run:    { src:'assets/actors/Actor3_6.png', fw:48, fh:48, row:0, frames:9, speed:90,  loop:true },
       attack: { src:'assets/actors/Actor3_6.png', fw:48, fh:48, row:3, frames:6, speed:70,  loop:false },
@@ -974,6 +983,7 @@ const Game = {
   telegraphElapsed: 0,
   pendingDmg: 0,
   coachActive: false,
+  pendingReward: null,
   practiceLayers: [{ monsters: ['goblin','goblin','goblin','goblin','goblin','goblin','goblin','goblin','goblin','goblin'] }],
 
   init() {
@@ -1118,6 +1128,20 @@ const Game = {
     this.updateUI();
   },
   doMonsterHit() {
+    // 閃避：依角色速度（spd）決定機率，越靈活越容易完全避開攻擊
+    const dodge = Math.max(0, (this.actor.spd - 0.85) * 0.4);
+    if (Math.random() < dodge) {
+      this.player.sprite = new SheetSprite(this.actor.sheets.idle);
+      this.player.sprite.reset();
+      this.feedback = `靈巧閃避！${this.actor.name} 避開了攻擊，毫髮無傷。`;
+      this.feedbackClass = 'correct';
+      this.showFeedback();
+      this.spawnPopup(this.playerX() + 40, this.floorY() - 92, '閃避!', '#7CFC00', 24);
+      this.updateUI();
+      this.state = 'monsterAttack';
+      setTimeout(() => this.enterResult(), 900);
+      return;
+    }
     let dmg = Math.max(1, Math.round(this.pendingDmg * (1 - this.actor.def)));
     if (DEBUG.on && DEBUG.invincible) dmg = 0;   // 測試模式：無敵
     this.player.hp -= dmg;
@@ -1161,12 +1185,38 @@ const Game = {
   },
   advanceMonster() {
     this.saveBest();
-    this.dropItems();
+    this.rollReward();
     this.state = 'monsterDie';
     const fx = new FxSprite(ASSETS.fx.death);
     fx.start();
     this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.65, y: this.floorY()-this.monster.height*0.5, size: 90 });
-    setTimeout(() => this.beginWalk(), 450);
+    setTimeout(() => this.afterMonsterDie(), 450);
+  },
+  rollReward() {
+    const r = Math.random();
+    if (r < 0.10) this.pendingReward = 'skip';          // 10% 直接得到跳題卡
+    else if (r < 0.60) this.pendingReward = 'choose';   // 再加 50% 讓玩家選藥/提示
+    else this.pendingReward = null;
+  },
+  afterMonsterDie() {
+    if (this.pendingReward === 'choose') { this.showRewardChoice(); return; }
+    if (this.pendingReward === 'skip') {
+      this.player.items.skip++;
+      this.spawnPopup(this.playerX() + 40, this.floorY() - 92, '跳題卡 +1', '#ffcc00', 22);
+    }
+    this.beginWalk();
+  },
+  showRewardChoice() {
+    const s = $('reward-screen'); if (s) s.style.display = 'flex';
+  },
+  chooseReward(type) {
+    if (!this.pendingReward) { this.beginWalk(); return; }
+    this.player.items[type]++;
+    const s = $('reward-screen'); if (s) s.style.display = 'none';
+    this.spawnPopup(this.playerX() + 40, this.floorY() - 92, (type === 'potion' ? '藥水' : '提示卡') + ' +1', '#7CFC00', 22);
+    this.updateUI();
+    this.pendingReward = null;
+    this.beginWalk();
   },
   beginWalk() {
     this.state = 'walk';
@@ -1189,10 +1239,8 @@ const Game = {
     }
     this.startBattle();
   },
-  dropItems() {
-    if (Math.random() < 0.35) this.player.items.potion++;
-    if (Math.random() < 0.25) this.player.items.hint++;
-  },
+  // 舊版自動掉落已改為「打敗後選擇 / 跳題卡」機制（見 rollReward / afterMonsterDie）
+  dropItems() {},
   useItem(type) {
     if (this.state !== 'idle' || this.player.items[type] <= 0) return;
     if (type === 'potion') {
@@ -1300,6 +1348,8 @@ const Game = {
     $('item-potion').addEventListener('click', () => this.useItem('potion'));
     $('item-hint').addEventListener('click', () => this.useItem('hint'));
     $('item-skip').addEventListener('click', () => this.useItem('skip'));
+    $('reward-potion').addEventListener('click', () => Game.chooseReward('potion'));
+    $('reward-hint').addEventListener('click', () => Game.chooseReward('hint'));
   },
   updateUI() {
     const totalLayers = this.activeLayers().length;
