@@ -1138,7 +1138,7 @@ const Game = {
     this.scheduleEffect(() => {
       const fx = new FxSprite(ASSETS.fx.explosion);
       fx.start();
-      this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.62, y: this.floorY()-50, size:70 });
+      this.effects.push({ fx, x: this.monsterX() + this.monster.height*0.45, y: this.floorY() - this.monster.height*0.55, size:70 });
       AudioSys.attack();
     }, 250);
   },
@@ -1315,7 +1315,7 @@ const Game = {
         this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-' + ba, '#9b6bff', 24);
         this.impact(45, 5);   // 奧術回饋額外一擊
         const fx = new FxSprite(ASSETS.fx.explosion); fx.start();
-        this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.62, y: this.floorY()-50, size:70 });
+        this.effects.push({ fx, x: this.monsterX() + this.monster.height*0.45, y: this.floorY() - this.monster.height*0.55, size:70 });
         AudioSys.attack();
         this.feedback += '<br>奧術回饋：額外攻擊敵人 ' + ba + ' 點！'; this.showFeedback();
         if (this.monster.currentHp <= 0) {
@@ -1352,7 +1352,7 @@ const Game = {
       this.animTime = 0;
       this.scheduleEffect(() => {
         const fx = new FxSprite(ASSETS.fx.explosion); fx.start();
-        this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.62, y: this.floorY()-50, size:70 });
+        this.effects.push({ fx, x: this.monsterX() + this.monster.height*0.45, y: this.floorY() - this.monster.height*0.55, size:70 });
         AudioSys.attack();
       }, 250);
     }
