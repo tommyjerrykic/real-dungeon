@@ -147,6 +147,7 @@
   .actor-params .ap-row { display: flex; justify-content: space-between; gap: 8px; }
   .actor-params .ap-row i { font-style: normal; color: #aaa; }
   .actor-params .ap-items { margin-top: 3px; font-size: 0.72rem; color: #8a8ad0; border-top: 1px solid #333; padding-top: 4px; }
+  .actor-params .ap-ability { margin-top: 3px; font-size: 0.72rem; color: #ffcc00; line-height: 1.25; }
   #actor-label { min-height: 1.2em; }
   @media (max-width: 480px) {
     #actor-grid { grid-template-columns: 1fr; max-width: 360px; }
@@ -480,6 +481,16 @@ const LAYER_POOLS = [
 const LAYER_BOSS_OF = {
   2:'boss_badger', 3:'boss_dino_rex', 4:'boss_dino_tri',
   5:'boss_frogger', 6:'boss_gollux', 7:'boss_pengu'
+};
+
+// 角色特殊能力參數（隨機觸發機率 / 倍率集中於此，方便調整與測試）
+const ACTOR_ABILITY = {
+  sword:   { name:'格擋',     desc:'受擊時有機會減免 50% 傷害',           reduceChance:0.5,  reduceMul:0.5 },
+  berserk: { name:'暴擊',     desc:'答對時有機會造成 2 倍傷害',           critChance:0.30 },
+  mage:    { name:'奧術回饋', desc:'使用藥水時額外攻擊敵人一次',           },
+  cleric:  { name:'神恩治癒', desc:'使用藥水直接回滿血量',               },
+  warlock: { name:'戰利品',   desc:'擊敗 Boss 後有機會隨機獲得 2 件道具', bossLootChance:0.5 },
+  fighter: { name:'連擊',     desc:'答對時有機會連擊（最多 4 下）',     comboChance:0.35, comboMax:4 }
 };
 
 /* ---------- utilities ---------- */
@@ -1099,11 +1110,26 @@ const Game = {
     this.player.sprite.reset();
     this.animTime = 0;
     // 立即扣血：讓攻擊動畫結束（約 200ms）時的死亡判斷能正確觸發，修復「怪物永遠打不死」的致命 bug
-    const atk = this.actor.atk;
+    let atk = this.actor.atk;
+    let crit = false;
+    if (this.actor.id === 'berserk' && Math.random() < ACTOR_ABILITY.berserk.critChance) { atk *= 2; crit = true; }  // 狂戰士：隨機暴擊 2 倍
     this.monster.currentHp -= atk;
-    if (this.monster.currentHp <= 0) this.monster.currentHp = 0;
+    if (this.monster.currentHp < 0) this.monster.currentHp = 0;
     this.monsterHitFlash = 200;
-    this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-' + atk, '#ffffff', 24);
+    this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-' + atk, crit ? '#ffcc00' : '#ffffff', crit ? 28 : 24);
+    if (crit) this.spawnPopup(this.monsterX() + 24, this.floorY() - this.monster.height*1.5, '暴擊!', '#ffcc00', 24);
+    // 格鬥家：隨機連擊，答對時有機會追加攻擊（含基礎攻擊共 2~comboMax 下，單次隨機機率遞進）
+    if (this.actor.id === 'fighter') {
+      const r = Math.random();
+      if (r < ACTOR_ABILITY.fighter.comboChance) {
+        const total = 2 + Math.floor((r / ACTOR_ABILITY.fighter.comboChance) * (ACTOR_ABILITY.fighter.comboMax - 1));
+        for (let i = 1; i < total; i++) {   // 基礎攻擊已扣 1 下，這裡追加其餘
+          this.monster.currentHp -= this.actor.atk;
+          if (this.monster.currentHp < 0) this.monster.currentHp = 0;
+        }
+        this.spawnPopup(this.monsterX() + 10, this.floorY() - this.monster.height*1.15, '連擊 x' + total, '#ff8c00', 26);
+      }
+    }
     if (this.monster.currentHp <= 0) this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30);
     this.hideCoach();
     this.updateUI();
@@ -1131,8 +1157,8 @@ const Game = {
     this.updateUI();
   },
   doMonsterHit() {
-    // 閃避：依角色速度（spd）決定機率，越靈活越容易完全避開攻擊
-    const dodge = Math.max(0, (this.actor.spd - 0.85) * 0.4);
+    // 閃避：依角色速度（spd）決定機率，再夾取至 1%~10% 區間
+    const dodge = Math.min(0.10, Math.max(0.01, (this.actor.spd - 0.85) * 0.4));
     if (Math.random() < dodge) {
       this.player.sprite = new SheetSprite(this.actor.sheets.idle);
       this.player.sprite.reset();
@@ -1146,6 +1172,11 @@ const Game = {
       return;
     }
     let dmg = Math.max(1, Math.round(this.pendingDmg * (1 - this.actor.def)));
+    let guarded = false;
+    if (this.actor.id === 'sword' && Math.random() < ACTOR_ABILITY.sword.reduceChance) {
+      dmg = Math.max(1, Math.round(dmg * ACTOR_ABILITY.sword.reduceMul));   // 劍士：格擋，隨機減傷 50%
+      guarded = true;
+    }
     if (DEBUG.on && DEBUG.invincible) dmg = 0;   // 測試模式：無敵
     this.player.hp -= dmg;
     if (this.player.hp < 0) this.player.hp = 0;
@@ -1154,8 +1185,12 @@ const Game = {
     this.player.sprite.reset();
     AudioSys.hit();
     this.flashHp('hit');
-    this.spawnPopup(this.playerX() + 40, this.floorY() - 92, '-' + dmg, '#ff6b6b', 24);
+    this.spawnPopup(this.playerX() + 40, this.floorY() - 92, '-' + dmg, guarded ? '#7CFC00' : '#ff6b6b', 24);
     this.updateUI();
+    if (guarded) {
+      this.feedback += '<br><span class="steps">🛡 劍士格擋成功，傷害減半為 ' + dmg + '。</span>';
+      this.showFeedback();
+    }
     if (this.player.hp <= 0) {
       setTimeout(() => this.gameOver(), 900);
     } else {
@@ -1222,10 +1257,22 @@ const Game = {
     this.beginWalk();
   },
   beginWalk() {
+    if (this.actor.id === 'warlock' && this.monster && this.monster.boss && Math.random() < ACTOR_ABILITY.warlock.bossLootChance) {
+      this.grantRandomItems(2);                                  // 術士：擊敗 Boss 後有機會隨機獲得 2 件道具
+    }
     this.state = 'walk';
     this.walkElapsed = 0;
     this.player.sprite = new SheetSprite(this.actor.sheets.run);
     this.player.sprite.reset();
+  },
+  grantRandomItems(n) {
+    const types = ['potion','hint','skip'];
+    for (let i = 0; i < n; i++) {
+      const t = types[Math.floor(Math.random()*types.length)];
+      this.player.items[t]++;
+      this.spawnPopup(this.playerX()+40, this.floorY()-92-i*22, (t==='potion'?'藥水':t==='hint'?'提示卡':'跳題卡') + ' +1', '#7CFC00', 20);
+    }
+    this.updateUI();
   },
   proceedToNext() {
     this.monsterIdx++;
@@ -1247,11 +1294,35 @@ const Game = {
   useItem(type) {
     if (this.state !== 'idle' || this.player.items[type] <= 0) return;
     if (type === 'potion') {
-      this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.actor.heal);
+      if (this.actor.id === 'cleric') {
+        this.player.hp = this.player.maxHp;                       // 牧師：神恩治癒，藥水直接回滿血量
+      } else {
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.actor.heal);
+      }
       this.player.items.potion--;
       AudioSys.item();
-      this.feedback = '使用藥水，回復 30 HP。'; this.feedbackClass='correct'; this.showFeedback();
+      const healed = this.actor.id === 'cleric' ? '回滿血量' : ('回復 ' + this.actor.heal + ' HP');
+      this.feedback = '使用藥水，' + healed + '。'; this.feedbackClass='correct'; this.showFeedback();
       this.flashHp('heal');
+      if (this.actor.id === 'mage') {                            // 法師：奧術回饋，用藥水時額外攻擊敵人一次
+        const ba = this.actor.atk;
+        this.monster.currentHp -= ba;
+        if (this.monster.currentHp <= 0) this.monster.currentHp = 0;
+        this.monsterHitFlash = 200;
+        this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-' + ba, '#9b6bff', 24);
+        const fx = new FxSprite(ASSETS.fx.explosion); fx.start();
+        this.effects.push({ fx, x: this.canvas.width/window.devicePixelRatio*0.62, y: this.floorY()-50, size:70 });
+        AudioSys.attack();
+        this.feedback += '<br>奧術回饋：額外攻擊敵人 ' + ba + ' 點！'; this.showFeedback();
+        if (this.monster.currentHp <= 0) {
+          this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30);
+          this.state = 'playerAttack';
+          const kb = $('keypad'); if (kb) kb.style.display = 'none';
+          this.updateUI();
+          this.advanceMonster();
+          return;
+        }
+      }
     } else if (type === 'hint') {
       this.player.items.hint--;
       AudioSys.item();
@@ -1764,7 +1835,7 @@ function launch(mode, ptype) {
 function updateActorLabel() {
   const actor = getSelectedActor();
   const el = $('actor-label');
-  if (el) el.textContent = '當前角色：' + actor.name + '（' + actor.role + '・HP ' + actor.maxHp + '）';
+  if (el) el.textContent = '當前角色：' + actor.name + '（' + actor.role + '・HP ' + actor.maxHp + '・' + ACTOR_ABILITY[actor.id].name + '）';
 }
 function buildActorScreen() {
   const grid = $('actor-grid');
@@ -1794,7 +1865,8 @@ function buildActorScreen() {
       '<span class="ap-row"><i>減傷</i>' + Math.round(actor.def*100) + '%</span>' +
       '<span class="ap-row"><i>速度</i>' + actor.spd.toFixed(2) + '</span>' +
       '<span class="ap-row"><i>藥水</i>' + actor.heal + '</span>' +
-      '<span class="ap-items">初始道具：' + actor.items.potion + '藥 ' + actor.items.hint + '提 ' + actor.items.skip + '跳</span>';
+      '<span class="ap-items">初始道具：' + actor.items.potion + '藥 ' + actor.items.hint + '提 ' + actor.items.skip + '跳</span>' +
+      '<span class="ap-ability">特殊・' + ACTOR_ABILITY[actor.id].name + '：' + ACTOR_ABILITY[actor.id].desc + '</span>';
     card.appendChild(left); card.appendChild(params);
     card.addEventListener('click', () => selectActor(actor.id));
     grid.appendChild(card);
