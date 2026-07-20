@@ -16,3 +16,6 @@ rvros – Animated Pixel Adventurer/
 
 # ===== WorkBuddy 內部狀態 =====
 .workbuddy/
+
+# ===== 倉庫備份 bundle（體積大，僅作離線備份，不納入版本控制）=====
+real-dungeon.bundle

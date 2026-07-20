@@ -1,0 +1,6 @@
+# 統一換行符：倉庫內一律以 LF 儲存，避免 Windows / 不同機器間 CRLF 造成無謂 diff
+* text=auto eol=lf
+
+# 二進制資源（圖片 / 動畫）不應被 Git 當文字處理
+*.png binary
+*.gif binary
