@@ -176,12 +176,10 @@
   #keypad.cmp-mode .cmp-key { display: block; }
   /* 比較題：只留 > < =、清除 與「攻擊」，隱藏數字 / √ / - / 退格 */
   #keypad.cmp-mode .key:not(.cmp-key):not(.action):not(.clear) { display: none; }
-  /* 比較題鍵盤佈局：上排 > = <，下排 清除 | 攻擊（攻擊佔兩格在右） */
-  #keypad.cmp-mode .key[data-key=">"] { grid-area: 1 / 1; }
-  #keypad.cmp-mode .key[data-key="="] { grid-area: 1 / 2; }
-  #keypad.cmp-mode .key[data-key="<"] { grid-area: 1 / 3; }
+  /* 比較題鍵盤佈局：上排 > = <，下排 清除 | 攻擊（攻擊佔兩格在右）
+     靠 HTML 順序自動排列，僅固定清除/攻擊位置 */
   #keypad.cmp-mode .key.clear { grid-area: 2 / 1; }
-  #keypad.cmp-mode .key.action { grid-area: 2 / 2 / 3 / 4; margin-top: 0; }
+  #keypad.cmp-mode .key.action { grid-area: 2 / 2 / 3 / 4; }
 
   @media (max-width: 780px) {
     #game-screen { flex-direction: column; }
@@ -366,8 +364,8 @@
         <div class="key clear" data-key="CLR">清除</div>
         <div class="key" data-key="BS">←</div>
         <div class="key cmp-key" data-key="&gt;">&gt;</div>
-        <div class="key cmp-key" data-key="&lt;">&lt;</div>
         <div class="key cmp-key" data-key="=">=</div>
+        <div class="key cmp-key" data-key="&lt;">&lt;</div>
         <div class="key action" data-key="ATTACK">攻擊</div>
       </div>
       <button id="continue-btn" class="btn">繼續</button>
