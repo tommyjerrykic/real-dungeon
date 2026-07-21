@@ -451,6 +451,11 @@ const ASSETS = {
     { name:'reindeer',     display:'馴鹿',       hp:55,  dmg:15, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer.png', fw:108, fh:124, row:0, frames:4, speed:120, loop:true } },
     { name:'reindeer_phurold', display:'馴鹿衛隊', hp:58, dmg:16, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer_phurold.png', fw:108, fh:128, row:0, frames:4, speed:120, loop:true } },
     { name:'reindeer_rudolph', display:'紅鼻馴鹿', hp:60, dmg:16, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer_rudolph.png', fw:108, fh:124, row:0, frames:4, speed:120, loop:true } },
+    // ===== 來自 pet 資料夾的四隻新怪物（2 行精靈條：上行單幀、下行 4 幀動作；預設朝右，需 flip:true）=====
+    { name:'weasel',       display:'迅貂',       hp:30,  dmg:8,  height:150, sheet:{ src:'assets/monsters/pet/weasel.png',       fw:233, fh:227, row:1, frames:4, speed:130, loop:true, flip:true } },
+    { name:'volt_fox',     display:'電狐',       hp:48,  dmg:12, height:175, sheet:{ src:'assets/monsters/pet/volt_fox.png',     fw:229, fh:218, row:1, frames:4, speed:120, loop:true, flip:true } },
+    { name:'soil_tortoise',display:'岩龜',       hp:70,  dmg:14, height:195, sheet:{ src:'assets/monsters/pet/soil_tortoise.png',fw:242, fh:229, row:1, frames:4, speed:140, loop:true, flip:true } },
+    { name:'wind_dragon',  display:'風龍',       hp:85,  dmg:17, height:215, sheet:{ src:'assets/monsters/pet/wind_dragon.png',  fw:237, fh:254, row:1, frames:4, speed:120, loop:true, flip:true } },
     // ===== 第 2~7 層關底 Boss（128x128 水平精靈條，idle 幀數 = 圖寬/128）=====
     { name:'boss_badger',   display:'獾王',       hp:110, dmg:14, height:210, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Badger/Badger/badger_idle.png',     fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
     { name:'boss_dino_rex', display:'暴龍王',     hp:150, dmg:16, height:230, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Dino_Rex/DinoRex/dino_rex_idle.png', fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
@@ -476,13 +481,13 @@ const ASSETS = {
 };
 
 const LAYER_POOLS = [
-  { count:4, pool:['goblin','bandit','bat'] },
-  { count:4, pool:['goblin','bandit','firehaunt','pebble'] },
-  { count:4, pool:['firehaunt','cultist','darkwizard','demon','snowman_a','snowman_b','snowman_c','snowman_d','snowman_e','snowman_f','snowman_g'] },
-  { count:4, pool:['demon','darkwizard','witch','cultist','boar','pig','skeleton','witch_doctor'] },
-  { count:4, pool:['witch','vampire','darkknight','cultist','reindeer','nasta','kid_ghost'] },
-  { count:4, pool:['vampire','darkknight','demon','treant','reindeer_phurold','reindeer_rudolph'] },
-  { count:4, pool:['demon','vampire','darkknight','cultist','treant','piggy'] }
+  { count:4, pool:['goblin','bandit','bat','weasel'] },
+  { count:4, pool:['goblin','bandit','firehaunt','pebble','weasel'] },
+  { count:4, pool:['firehaunt','cultist','darkwizard','demon','snowman_a','snowman_b','snowman_c','snowman_d','snowman_e','snowman_f','snowman_g','volt_fox'] },
+  { count:4, pool:['demon','darkwizard','witch','cultist','boar','pig','skeleton','witch_doctor','volt_fox','soil_tortoise'] },
+  { count:4, pool:['witch','vampire','darkknight','cultist','reindeer','nasta','kid_ghost','soil_tortoise'] },
+  { count:4, pool:['vampire','darkknight','demon','treant','reindeer_phurold','reindeer_rudolph','wind_dragon'] },
+  { count:4, pool:['demon','vampire','darkknight','cultist','treant','piggy','wind_dragon'] }
 ];
 // 各層關底 Boss：層 2~7 最後一隻固定為對應 Boss
 const LAYER_BOSS_OF = {
