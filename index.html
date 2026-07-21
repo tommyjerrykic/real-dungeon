@@ -33,6 +33,8 @@
   }
   .screen h1 { font-size: 2.2rem; margin: 0 0 16px; color: var(--accent); letter-spacing: 2px; }
   .screen p { max-width: 560px; line-height: 1.7; color: var(--muted); margin: 6px 0; }
+  #story-screen p { max-width: 620px; line-height: 2; color: #e8e8f0; background: rgba(0,0,0,0.35); border: 2px solid var(--border); border-radius: 10px; padding: 18px 24px; margin: 18px 0; animation: storyIn .4s ease; }
+  @keyframes storyIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   .btn {
     margin-top: 22px; padding: 14px 32px; font-size: 1.2rem; font-weight: bold;
     border: 3px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer;
@@ -357,6 +359,12 @@
   <div id="buff-cards" style="display:flex; gap:20px; margin-top:20px; flex-wrap:wrap; justify-content:center;"></div>
 </div>
 
+<div id="story-screen" class="screen" style="display:none; z-index:360;">
+  <h1 id="story-title">第 1 層</h1>
+  <p id="story-text" style="font-size:1.15rem; line-height:2; max-width:620px; color:#e8e8f0;"></p>
+  <button id="story-continue" class="btn">繼續冒險 ▶</button>
+</div>
+
 <!-- MAIN GAME -->
 <div id="game-screen">
     <div id="dungeon">
@@ -537,6 +545,17 @@ const LAYER_BOSS_OF = {
   2:'boss_badger', 3:'boss_dino_rex', 4:'boss_dino_tri',
   5:'boss_frogger', 6:'boss_gollux', 7:'boss_pengu'
 };
+// 進層過場小劇情（index = 層數；[0] 為序章，[1] 為第 1 層開場）
+const LAYER_STORY = [
+  '實數地下城的封印鬆動了。帶著你對根式的理解，深入七層，收復被怪物佔據的數學聖殿吧！',
+  '第 1 層・迷霧林緣：哥布林與盜賊在林邊遊蕩，蝙蝠掠過枝頭。先從最基礎的根式算起，熱身一下！',
+  '第 2 層・獾王領地：火焰幽魂在洞穴飄盪。獾王盤踞此地，答錯了牠可不会手下留情——看準紅色警示再出手。',
+  '第 3 層・暴龍峽谷：遠古的暴龍王統治著峽谷，邪教徒與暗影法師四處遊走。根式運算要更快更準。',
+  '第 4 層・三角龍荒原：三角龍王以堅甲聞名。這裡的怪物成群結隊，別讓任何一題漏算。',
+  '第 5 層・巨蛙沼澤：毒霧瀰漫，巨蛙王潛伏水中。分母有理化與根式比較將是通過的關鍵。',
+  '第 6 層・岩巨像冰原：寒風呼嘯，岩巨像在冰雪中矗立。每一步運算都關乎生死。',
+  '第 7 層・寒冰企鵝王座：地下城最深處，寒冰企鵝王等待最後的挑戰者。傾盡所學，終結這場冒險！'
+];
 
 // 進層隨機增益（Roguelike 風格）：每層開始三選一
 const BUFF_IDS = ['atk10','dr10','firstsafe','lifesteal','eva5','crit5','glass','dodcrit','hphigh','reflect','onelife'];
@@ -821,7 +840,8 @@ const AudioSys = {
   correct() { this.tone(523,0.1,'square',0.05); setTimeout(()=>this.tone(784,0.15,'square',0.05),100); },
   wrong() { this.tone(150,0.25,'sawtooth',0.06); },
   item() { this.tone(660,0.1,'square',0.05); setTimeout(()=>this.tone(880,0.2,'square',0.05),100); },
-  win() { [523,659,784,1046].forEach((f,i)=>setTimeout(()=>this.tone(f,0.25,'square',0.06),i*150)); }
+  win() { [523,659,784,1046].forEach((f,i)=>setTimeout(()=>this.tone(f,0.25,'square',0.06),i*150)); },
+  telegraph() { this.tone(330,0.12,'square',0.05); setTimeout(()=>this.tone(466,0.16,'square',0.05),130); }  // 怪物蓄力預警音
 };
 
 /* ---------- question generator ---------- */
@@ -1285,6 +1305,8 @@ const Game = {
     $('keypad').style.display = 'none';   // 出現解題步驟立即隱藏鍵盤
     this.state = 'monsterTelegraph';
     this.telegraphElapsed = 0;
+    AudioSys.telegraph();                  // 預警音效
+    this.spawnPopup(this.monsterX() + this.monster.height*0.4, this.floorY() - this.monster.height - 10, '蓄力!', '#ff5555', 22);
     this.updateUI();
   },
   doMonsterHit() {
@@ -1425,13 +1447,27 @@ const Game = {
     this.updateUI();
   },
   // 進層：重置每層專屬狀態，彈出三選一增益，選完才開始戰鬥
+  // 進層過場小劇情：先播該層故事，再進入「選增益 / 開打」
+  showStory(cb) {
+    const screen = $('story-screen');
+    if (!screen) { cb(); return; }
+    const title = $('story-title'), text = $('story-text');
+    const idx = this.layer === 1 ? 0 : Math.min(this.layer, LAYER_STORY.length - 1);
+    if (title) title.textContent = this.layer === 1 ? '序章・啟程' : ('第 ' + this.layer + ' 層');
+    if (text) text.textContent = LAYER_STORY[idx] || '';
+    screen.style.display = 'flex';
+    const btn = $('story-continue');
+    if (btn) btn.onclick = () => { AudioSys.uiClick(); screen.style.display = 'none'; cb(); };
+  },
   beginLayer() {
     this._firstMissUsed = false;
-    if (this.layer === 1) { this.startBattle(); return; }   // 第 1 層不抽增益，直接開打
-    this.state = 'buffSelect';   // 選擇期間暫停戰鬥推進，避免 update 重入 proceedToNext
-    this.showBuffSelect(() => {
-      this.renderBuffLegend();
-      this.startBattle();
+    this.state = 'buffSelect';   // 先暫停戰鬥推進（含 walk 迴圈），避免過場/選增益期間 update 重入 proceedToNext
+    this.showStory(() => {                          // 進層先播過場小劇情
+      if (this.layer === 1) { this.startBattle(); return; }   // 第 1 層不抽增益，直接開打
+      this.showBuffSelect(() => {
+        this.renderBuffLegend();
+        this.startBattle();
+      });
     });
   },
   showBuffSelect(cb) {
@@ -1900,16 +1936,35 @@ const Game = {
       if (this.state === 'monsterTelegraph') {
         const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 70);
         const w = this.monster.height * 0.9;
+        // 紅色充能疊加在怪物身上（預警視覺）
+        ctx.save();
+        ctx.globalAlpha = 0.16 + 0.20 * pulse;
+        ctx.fillStyle = '#ff3030';
+        ctx.fillRect(mx - 6, my - 6, w + 12, this.monster.height + 12);
+        ctx.restore();
+        // 雙重紅環脈動
         ctx.save();
         ctx.strokeStyle = `rgba(255,60,60,${0.5 + 0.4 * pulse})`;
         ctx.lineWidth = 3;
         const rr = w * 0.6 + pulse * 10;
         ctx.beginPath(); ctx.arc(mx + w/2, my + this.monster.height/2, rr, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,120,120,${0.25 + 0.3 * (1-pulse)})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(mx + w/2, my + this.monster.height/2, rr + 8, 0, Math.PI*2); ctx.stroke();
+        // 驚嘆號
         ctx.globalAlpha = 0.7 + 0.3 * pulse;
         ctx.fillStyle = '#ffcc00';
         ctx.font = `bold ${Math.round(this.monster.height*0.5)}px 'Courier New', monospace`;
         ctx.textAlign = 'center';
         ctx.fillText('！', mx + w/2, my - 22);
+        ctx.restore();
+        // 頂部「⚠ 蓄力中」警示條
+        ctx.save();
+        ctx.globalAlpha = 0.6 + 0.4 * pulse;
+        ctx.fillStyle = '#ff4444';
+        ctx.font = `bold 22px 'Courier New', monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText('⚠ ' + this.monster.display + ' 蓄力中…', W/2, 38);
         ctx.restore();
       }
     }
