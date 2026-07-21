@@ -494,7 +494,7 @@ const ACTOR_ABILITY = {
   mage:    { name:'奧術回饋', desc:'使用藥水時額外攻擊敵人一次',           },
   cleric:  { name:'神恩治癒', desc:'使用藥水直接回滿血量',               },
   warlock: { name:'戰利品',   desc:'擊敗 Boss 後有機會隨機獲得 2 件道具', bossLootChance:0.5 },
-  fighter: { name:'連擊',     desc:'答對時有機會連擊（最多 4 下）',     comboChance:0.35, comboMax:4 }
+  fighter: { name:'連擊',     desc:'答對時有機會連擊（最多 2 下，並打出兩段攻擊動作）',     comboChance:0.35, comboMax:2 }
 };
 
 /* ---------- utilities ---------- */
@@ -1117,6 +1117,7 @@ const Game = {
     this.player.sprite.speed *= this.actor.spd;
     this.player.sprite.reset();
     this.animTime = 0;
+    this.attackRepeats = 1;   // 預設播 1 次攻擊動作；格鬥家連擊時改為 2 段
     // 立即扣血：讓攻擊動畫結束（約 200ms）時的死亡判斷能正確觸發，修復「怪物永遠打不死」的致命 bug
     let atk = this.actor.atk;
     let crit = false;
@@ -1136,6 +1137,7 @@ const Game = {
           this.monster.currentHp -= this.actor.atk;
           if (this.monster.currentHp < 0) this.monster.currentHp = 0;
         }
+        this.attackRepeats = total;   // 連擊幾下就播幾段攻擊動作（comboMax=2 → 兩段）
         this.spawnPopup(this.monsterX() + 10, this.floorY() - this.monster.height*1.15, '連擊 x' + total, '#ff8c00', 26);
         this.impact(70, 8);   // 連擊：強化頓幀 + 震動
       }
@@ -1358,6 +1360,7 @@ const Game = {
       this.player.sprite = new SheetSprite(this.actor.sheets.attack);
       this.player.sprite.reset();
       this.animTime = 0;
+      this.attackRepeats = 1;
       this.scheduleEffect(() => {
         const fx = new FxSprite(ASSETS.fx.explosion); fx.start();
         this.effects.push({ fx, x: this.monsterX() + this.monster.height*0.45, y: this.floorY() - this.monster.height*0.55, size:70 });
@@ -1484,7 +1487,20 @@ const Game = {
     } else if (this.state === 'playerAttack') {
       this.animTime += dt;
       if (this.player.sprite.done) {
-        this.enterResult();   // 答對後統一進 result（顯示解題步驟 + 繼續），擊殺也按繼續後才播放死亡
+        if (this.attackRepeats > 1) {           // 格鬥家連擊：重播攻擊動作，每段都打出擊中感
+          this.attackRepeats--;
+          this.player.sprite.reset();
+          this.monsterHitFlash = 200;
+          this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height - 8, '-' + this.actor.atk, '#ff8c00', 24);
+          this.impact(50, 6);
+          this.scheduleEffect(() => {
+            const fx = new FxSprite(ASSETS.fx.explosion); fx.start();
+            this.effects.push({ fx, x: this.monsterX() + this.monster.height*0.45, y: this.floorY() - this.monster.height*0.55, size:70 });
+            AudioSys.attack();
+          }, 120);
+        } else {
+          this.enterResult();   // 答對後統一進 result（顯示解題步驟 + 繼續），擊殺也按繼續後才播放死亡
+        }
       }
     }
   },
