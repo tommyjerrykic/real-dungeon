@@ -1162,14 +1162,15 @@ const Game = {
     const mhp = Math.max(10, Math.round(cfg.hp * dm[0]));
     const mdmg = Math.max(4, Math.round(cfg.dmg * dm[1]));
     this.monster = { ...cfg, maxHp: mhp, currentHp: mhp, dmg: mdmg };
+    const flip = (cfg.flip !== undefined) ? cfg.flip : !!(cfg.sheet && cfg.sheet.flip);
     if (cfg.sheet) {
       this.monster.sprite = new SheetSprite(cfg.sheet);
-      this.monster.flip = (cfg.flip !== undefined) ? cfg.flip : false;   // 預設 MZ 朝左；Boss 設 flip:true 翻轉朝左面向玩家
+      this.monster.flip = flip;   // 預設 MZ 朝左；Boss 設 flip:true 翻轉朝左面向玩家
       this.monster.sheetCfg = cfg.sheet;
     } else {
       this.monster.sprite = new FrameSprite(cfg.files.map(f => 'assets/' + f));
       this.monster.sprite.speed = 180;
-      this.monster.flip = (cfg.flip !== undefined) ? cfg.flip : false;    // 舊素材原生朝左，無需翻轉即面向玩家
+      this.monster.flip = flip;    // 舊素材原生朝左，無需翻轉即面向玩家
       this.monster.sheetCfg = null;
     }
     this._monsterPose = 'idle';
