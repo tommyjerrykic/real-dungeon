@@ -454,11 +454,11 @@ const ASSETS = {
     { name:'reindeer',     display:'馴鹿',       hp:55,  dmg:15, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer.png', fw:108, fh:124, row:0, frames:4, speed:120, loop:true } },
     { name:'reindeer_phurold', display:'馴鹿衛隊', hp:58, dmg:16, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer_phurold.png', fw:108, fh:128, row:0, frames:4, speed:120, loop:true } },
     { name:'reindeer_rudolph', display:'紅鼻馴鹿', hp:60, dmg:16, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer_rudolph.png', fw:108, fh:124, row:0, frames:4, speed:120, loop:true } },
-    // ===== 來自 pet 資料夾的四隻新怪物（用戶提供單幀造型圖 *_1.png；圖片原生朝左，flip:false 面向玩家）=====
-    { name:'weasel',       display:'迅貂',       hp:30,  dmg:8,  height:150, sheet:{ src:'assets/monsters/pet/weasel1.png',       fw:209, fh:176, row:0, frames:1, speed:150, loop:true, flip:false } },
-    { name:'volt_fox',     display:'電狐',       hp:48,  dmg:12, height:175, sheet:{ src:'assets/monsters/pet/volt_fox1.png',     fw:195, fh:169, row:0, frames:1, speed:150, loop:true, flip:false } },
-    { name:'soil_tortoise',display:'岩龜',       hp:70,  dmg:14, height:195, sheet:{ src:'assets/monsters/pet/soil_tortoise1.png',fw:270, fh:175, row:0, frames:1, speed:150, loop:true, flip:false } },
-    { name:'wind_dragon',  display:'風龍',       hp:85,  dmg:17, height:215, sheet:{ src:'assets/monsters/pet/wind_dragon1.png',  fw:174, fh:223, row:0, frames:1, speed:150, loop:true, flip:false } },
+    // ===== 來自 pet 資料夾的四隻新怪物（用戶提供單幀造型圖 *_1.png；圖片原生朝右，flip:true 翻轉後面向玩家）=====
+    { name:'weasel',       display:'迅貂',       hp:30,  dmg:8,  height:150, sheet:{ src:'assets/monsters/pet/weasel1.png',       fw:209, fh:176, row:0, frames:1, speed:150, loop:true, flip:true } },
+    { name:'volt_fox',     display:'電狐',       hp:48,  dmg:12, height:175, sheet:{ src:'assets/monsters/pet/volt_fox1.png',     fw:195, fh:169, row:0, frames:1, speed:150, loop:true, flip:true } },
+    { name:'soil_tortoise',display:'岩龜',       hp:70,  dmg:14, height:195, sheet:{ src:'assets/monsters/pet/soil_tortoise1.png',fw:270, fh:175, row:0, frames:1, speed:150, loop:true, flip:true } },
+    { name:'wind_dragon',  display:'風龍',       hp:85,  dmg:17, height:215, sheet:{ src:'assets/monsters/pet/wind_dragon1.png',  fw:174, fh:223, row:0, frames:1, speed:150, loop:true, flip:true } },
     // ===== 第 2~7 層關底 Boss（128x128 水平精靈條，idle 幀數 = 圖寬/128）=====
     { name:'boss_badger',   display:'獾王',       hp:110, dmg:14, height:210, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Badger/Badger/badger_idle.png',     fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
     { name:'boss_dino_rex', display:'暴龍王',     hp:150, dmg:16, height:230, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Dino_Rex/DinoRex/dino_rex_idle.png', fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
@@ -1552,22 +1552,51 @@ const Game = {
     return tints[this.layer] || null;
   },
   drawMonsterHp(ctx, mx, my, h) {
-    const bw = Math.max(50, h*0.7), bh = 7;
-    const bx = mx + h*0.45 - bw/2;
-    const by = my - 16;
+    const hp = Math.max(0, this.monster.currentHp);
+    const maxHp = this.monster.maxHp;
+    const slots = Math.ceil(maxHp / 10);     // 每 10 血一顆心
+    const full = Math.floor(hp / 10);
+    const half = (hp % 10) >= 5;
+    const heartSize = Math.min(16, Math.max(h * 0.12, 10));
+    const gap = heartSize * 0.15;
+    const totalW = slots * heartSize + (slots - 1) * gap;
+    const cx = mx + h*0.45;                  // 怪物中心 x
+    const startX = cx - totalW/2;
+    const by = my - 22;                      // 愛心基線 y
     if (this.monster.boss) {
       ctx.save();
       ctx.fillStyle = '#ffcc00';
       ctx.font = 'bold 15px "Courier New", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('★ BOSS ★', bx + bw/2, by - 7);
+      ctx.fillText('★ BOSS ★', cx, by - 6);
       ctx.restore();
     }
-    ctx.fillStyle = '#222'; ctx.fillRect(bx-1, by-1, bw+2, bh+2);
-    const ratio = Math.max(0, this.monster.currentHp / this.monster.maxHp);
-    ctx.fillStyle = ratio > 0.3 ? '#5cd65c' : '#e04545';
-    ctx.fillRect(bx, by, bw*ratio, bh);
+    ctx.save();
+    ctx.font = `${heartSize}px serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i < slots; i++) {
+      const x = startX + i * (heartSize + gap);
+      if (i < full) {
+        ctx.fillStyle = '#ff4d4d';
+        ctx.fillText('❤', x, by);
+      } else if (i === full && half) {
+        ctx.fillStyle = '#3a3030';
+        ctx.fillText('❤', x, by);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, by - 2, heartSize/2, heartSize + 4);
+        ctx.clip();
+        ctx.fillStyle = '#ff4d4d';
+        ctx.fillText('❤', x, by);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#3a3030';
+        ctx.fillText('❤', x, by);
+      }
+    }
+    ctx.restore();
   },
   spawnPopup(x, y, text, color, size) {
     this.popups.push({ x, y, vy: -0.05, life: 1, text, color, size: size || 22, age: 0, glow: (size || 22) >= 26 });
