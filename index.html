@@ -1564,15 +1564,20 @@ const Game = {
     const rows = Math.ceil(slots / perRow);
     const cx = mx + h*0.45;                  // 怪物中心 x
     const by = my - 22;                      // 第一行愛心基線 y
+    // 怪物名字：所有怪物都標示 display（Boss 用金色並加 ★）
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
     if (this.monster.boss) {
-      ctx.save();
       ctx.fillStyle = '#ffcc00';
       ctx.font = 'bold 15px "Courier New", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText('★ BOSS ★', cx, by - 6);
-      ctx.restore();
+      ctx.fillText('★ BOSS ★ ' + this.monster.display, cx, by - 6);
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px "Courier New", monospace';
+      ctx.fillText(this.monster.display, cx, by - 6);
     }
+    ctx.restore();
     ctx.save();
     ctx.font = `${heartSize}px serif`;
     ctx.textAlign = 'left';
