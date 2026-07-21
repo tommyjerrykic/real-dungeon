@@ -1606,10 +1606,13 @@ const Game = {
     return c;
   },
   setupKeyboard() {
+    if (this._kbReady) return;        // 防止重複綁定（若 init 被意外執行多次，避免按鍵監聽器疊加造成連點）
+    this._kbReady = true;
     const keys = document.querySelectorAll('.key');
     keys.forEach(k => k.addEventListener('click', () => this.onKey(k.dataset.key)));
     const cbtn = $('continue-btn'); if (cbtn) cbtn.addEventListener('click', () => this.continueGame());
     document.addEventListener('keydown', e => {
+      if (e.repeat) return;           // 擋住按住時作業系統的自動重複 keydown，避免被當成連點
       if (this.state === 'result') {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.continueGame(); }
         return;
@@ -2156,6 +2159,8 @@ function updateTopbar() {
 }
 
 function launch(mode, ptype) {
+  if (Game._booting) return;          // 防止開始鈕被連點/雙擊導致 Game.init 重複執行（重複綁監聽器→按鍵連點）
+  Game._booting = true;
   lockClicks();
   AudioSys.unlock();
   Game.mode = mode; Game.practiceType = ptype; Game.difficulty = selectedDifficulty;
