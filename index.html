@@ -176,7 +176,12 @@
   #keypad.cmp-mode .cmp-key { display: block; }
   /* 比較題：只留 > < =、清除 與「攻擊」，隱藏數字 / √ / - / 退格 */
   #keypad.cmp-mode .key:not(.cmp-key):not(.action):not(.clear) { display: none; }
-  #keypad.cmp-mode .key.action { grid-column: 1 / -1; margin-top: 4px; }
+  /* 比較題鍵盤佈局：上排 > = <，下排 清除 | 攻擊（攻擊佔兩格在右） */
+  #keypad.cmp-mode .key[data-key=">"] { grid-area: 1 / 1; }
+  #keypad.cmp-mode .key[data-key="="] { grid-area: 1 / 2; }
+  #keypad.cmp-mode .key[data-key="<"] { grid-area: 1 / 3; }
+  #keypad.cmp-mode .key.clear { grid-area: 2 / 1; }
+  #keypad.cmp-mode .key.action { grid-area: 2 / 2 / 3 / 4; margin-top: 0; }
 
   @media (max-width: 780px) {
     #game-screen { flex-direction: column; }
@@ -451,11 +456,11 @@ const ASSETS = {
     { name:'reindeer',     display:'馴鹿',       hp:55,  dmg:15, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer.png', fw:108, fh:124, row:0, frames:4, speed:120, loop:true } },
     { name:'reindeer_phurold', display:'馴鹿衛隊', hp:58, dmg:16, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer_phurold.png', fw:108, fh:128, row:0, frames:4, speed:120, loop:true } },
     { name:'reindeer_rudolph', display:'紅鼻馴鹿', hp:60, dmg:16, height:220, sheet:{ src:'assets/monsters/newmonster_battle/reindeer_rudolph.png', fw:108, fh:124, row:0, frames:4, speed:120, loop:true } },
-    // ===== 來自 pet 資料夾的四隻新怪物（2 行精靈條：上行 1 幀待機、下行 4 幀攻擊；圖片原生朝左，flip:false 面向玩家）=====
-    { name:'weasel',       display:'迅貂',       hp:30,  dmg:8,  height:150, sheet:{ src:'assets/monsters/pet/weasel.png',       fw:233, fh:227, row:0, frames:1, idleRow:0, idleFrames:1, attackRow:1, attackFrames:4, speed:130, loop:true, flip:false } },
-    { name:'volt_fox',     display:'電狐',       hp:48,  dmg:12, height:175, sheet:{ src:'assets/monsters/pet/volt_fox.png',     fw:229, fh:218, row:0, frames:1, idleRow:0, idleFrames:1, attackRow:1, attackFrames:4, speed:120, loop:true, flip:false } },
-    { name:'soil_tortoise',display:'岩龜',       hp:70,  dmg:14, height:195, sheet:{ src:'assets/monsters/pet/soil_tortoise.png',fw:242, fh:229, row:0, frames:1, idleRow:0, idleFrames:1, attackRow:1, attackFrames:4, speed:140, loop:true, flip:false } },
-    { name:'wind_dragon',  display:'風龍',       hp:85,  dmg:17, height:215, sheet:{ src:'assets/monsters/pet/wind_dragon.png',  fw:237, fh:254, row:0, frames:1, idleRow:0, idleFrames:1, attackRow:1, attackFrames:4, speed:120, loop:true, flip:false } },
+    // ===== 來自 pet 資料夾的四隻新怪物（2 行 x 4 列精靈條：上行第 2 列為 1 幀待機；下行 4 幀攻擊；圖片原生朝左，flip:false 面向玩家）=====
+    { name:'weasel',       display:'迅貂',       hp:30,  dmg:8,  height:150, sheet:{ src:'assets/monsters/pet/weasel.png',       fw:233, fh:227, row:0, frames:1, idleRow:0, idleFrames:1, idleStartFrame:1, attackRow:1, attackFrames:4, attackStartFrame:0, speed:130, loop:true, flip:false } },
+    { name:'volt_fox',     display:'電狐',       hp:48,  dmg:12, height:175, sheet:{ src:'assets/monsters/pet/volt_fox.png',     fw:229, fh:218, row:0, frames:1, idleRow:0, idleFrames:1, idleStartFrame:1, attackRow:1, attackFrames:4, attackStartFrame:0, speed:120, loop:true, flip:false } },
+    { name:'soil_tortoise',display:'岩龜',       hp:70,  dmg:14, height:195, sheet:{ src:'assets/monsters/pet/soil_tortoise.png',fw:242, fh:229, row:0, frames:1, idleRow:0, idleFrames:1, idleStartFrame:1, attackRow:1, attackFrames:4, attackStartFrame:0, speed:140, loop:true, flip:false } },
+    { name:'wind_dragon',  display:'風龍',       hp:85,  dmg:17, height:215, sheet:{ src:'assets/monsters/pet/wind_dragon.png',  fw:237, fh:254, row:0, frames:1, idleRow:0, idleFrames:1, idleStartFrame:1, attackRow:1, attackFrames:4, attackStartFrame:0, speed:120, loop:true, flip:false } },
     // ===== 第 2~7 層關底 Boss（128x128 水平精靈條，idle 幀數 = 圖寬/128）=====
     { name:'boss_badger',   display:'獾王',       hp:110, dmg:14, height:210, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Badger/Badger/badger_idle.png',     fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
     { name:'boss_dino_rex', display:'暴龍王',     hp:150, dmg:16, height:230, boss:true, flip:true, sheet:{ src:'assets/monsters/Boss/Bosses_Dino_Rex/DinoRex/dino_rex_idle.png', fw:128, fh:128, row:0, frames:5,  speed:150, loop:true } },
@@ -1489,8 +1494,8 @@ const Game = {
     const sp = this.monster && this.monster.sprite;
     const s = this.monster && this.monster.sheetCfg;
     if (!sp || !s || s.attackRow === undefined) return;   // 非多行精靈（如 MZ/Boss 單行）不改變
-    if (pose === 'attack') { sp.row = s.attackRow; sp.frames = s.attackFrames; }
-    else { sp.row = s.idleRow; sp.frames = s.idleFrames; }
+    if (pose === 'attack') { sp.row = s.attackRow; sp.frames = s.attackFrames; sp.startFrame = s.attackStartFrame || 0; }
+    else { sp.row = s.idleRow; sp.frames = s.idleFrames; sp.startFrame = s.idleStartFrame || 0; }
     sp.reset();
     this._monsterPose = pose;
   },
