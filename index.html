@@ -89,8 +89,11 @@
   }
   #hp-bar { margin-bottom: 10px; }
   #hp-bar .label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; color: var(--muted); }
-  #hp-fill { height: 14px; background: #333; border-radius: 3px; overflow: hidden; border: 1px solid #555; }
-  #hp-inner { height: 100%; width: 100%; background: linear-gradient(90deg, #ff6666, #cc0000); transition: width .25s; }
+  #hp-hearts { display: flex; flex-wrap: wrap; align-items: center; font-size: 18px; line-height: 1.1; }
+  .heart { position: relative; display: inline-block; margin-right: 3px; color: var(--hp); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+  .heart.empty { color: #3a3030; }
+  .heart.half .h-base { color: #3a3030; }
+  .heart.half .h-fill { position: absolute; left: 0; top: 0; width: 50%; overflow: hidden; color: var(--hp); white-space: nowrap; }
   #progress-row { display: none; }
   #items-row { display: flex; gap: 10px; margin-top: 8px; }
   .item-slot {
@@ -208,9 +211,9 @@
   @keyframes coachPulse { 0%,100%{ box-shadow: 0 0 0 0 rgba(255,204,0,.6);} 50%{ box-shadow: 0 0 0 8px rgba(255,204,0,0);} }
   /* HP 條反饋 */
   @keyframes hpHit { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
-  #hp-fill.hp-hit { animation: hpHit .4s ease; filter: brightness(1.6) saturate(1.4); }
+  #hp-hearts.hp-hit { animation: hpHit .4s ease; filter: brightness(1.6) saturate(1.4); }
   @keyframes hpHeal { 0%{filter:brightness(1);} 50%{filter:brightness(1.9) drop-shadow(0 0 6px #4caf50);} 100%{filter:brightness(1);} }
-  #hp-fill.hp-heal { animation: hpHeal .5s ease; }
+  #hp-hearts.hp-heal { animation: hpHeal .5s ease; }
   /* 對話氣泡彈入 / 輸入框按鍵脈衝 */
   @keyframes bubblePop { 0%{ transform:scale(.8); opacity:0;} 100%{ transform:scale(1); opacity:1;} }
   #speech-bubble.pop { animation: bubblePop .25s ease; }
@@ -324,7 +327,7 @@
       <div id="progress-row">層數 <span id="layer-num">1</span> / <span id="layer-total">7</span>　怪物 <span id="monster-num">1</span> / <span id="monster-total">3</span></div>
       <div id="hp-bar">
         <div class="label"><span>HP</span><span id="hp-text">100 / 100</span></div>
-        <div id="hp-fill"><div id="hp-inner"></div></div>
+        <div id="hp-hearts"></div>
       </div>
       <div id="items-row">
         <div class="item-slot" id="item-potion" title="藥水：回復 30 HP">
@@ -1449,13 +1452,26 @@ const Game = {
     $('monster-num').textContent = this.monsterIdx + 1;
     $('monster-total').textContent = this.currentLayerTotal();
     $('hp-text').textContent = `${this.player.hp} / ${this.player.maxHp}`;
-    $('hp-inner').style.width = (this.player.hp/this.player.maxHp*100) + '%';
+    this.renderHearts();
     $('cnt-potion').textContent = this.player.items.potion;
     $('cnt-hint').textContent = this.player.items.hint;
     $('cnt-skip').textContent = this.player.items.skip;
     ['potion','hint','skip'].forEach(t => {
       const el = $('item-'+t); if (this.player.items[t] <= 0) el.classList.add('disabled'); else el.classList.remove('disabled');
     });
+  },
+  renderHearts() {
+    const hp = this.player.hp, maxHp = this.player.maxHp;
+    const slots = Math.ceil(maxHp / 10);          // 愛心格數（每 10 血一格）
+    const full = Math.floor(hp / 10);             // 滿心數
+    const half = (hp % 10) >= 5;                  // 餘 5 血以上 → 半顆心
+    let html = '';
+    for (let i = 0; i < slots; i++) {
+      if (i < full) html += '<span class="heart full">❤</span>';
+      else if (i === full && half) html += '<span class="heart half"><span class="h-base">❤</span><span class="h-fill">❤</span></span>';
+      else html += '<span class="heart empty">❤</span>';
+    }
+    const el = $('hp-hearts'); if (el) el.innerHTML = html;
   },
   floorY() { return this.canvas.height/window.devicePixelRatio * 0.78; },
   playerX() { return this.canvas.width/window.devicePixelRatio * 0.22; },
@@ -1556,7 +1572,7 @@ const Game = {
     try { localStorage.setItem('realDungeonCoach', '1'); } catch(e){}
   },
   flashHp(kind) {
-    const el = $('hp-fill');
+    const el = $('hp-hearts');
     const cls = kind === 'heal' ? 'hp-heal' : 'hp-hit';
     el.classList.remove('hp-hit', 'hp-heal'); void el.offsetWidth; el.classList.add(cls);
     setTimeout(() => el.classList.remove(cls), 440);
