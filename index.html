@@ -558,7 +558,7 @@ const LAYER_STORY = [
 ];
 
 // 進層隨機增益（Roguelike 風格）：每層開始三選一
-const BUFF_IDS = ['atk10','dr10','firstsafe','lifesteal','eva5','crit5','glass','dodcrit','hphigh','reflect','onelife'];
+const BUFF_IDS = ['atk10','dr10','firstsafe','lifesteal','eva5','crit5','glass','dodcrit','hphigh','reflect','onelife','regen','desperate','skill','firstkill'];
 const BUFF_DEFS = {
   atk10:     { icon:'⚔️', name:'攻擊 +10%', desc:'攻擊力提升 10%' },
   dr10:      { icon:'🛡️', name:'減傷 10%',   desc:'受到的傷害降低 10%' },
@@ -571,6 +571,10 @@ const BUFF_DEFS = {
   hphigh:    { icon:'🌟', name:'亢奮',       desc:'滿血時攻擊 +15%，不滿血時攻擊 -30%' },
   reflect:   { icon:'🔰', name:'荊棘',       desc:'受到傷害時，反彈 30% 給敵人' },
   onelife:   { icon:'💀', name:'一擊命',     desc:'生命固定為 1，但攻擊力提升 5 倍' },
+  regen:     { icon:'🌿', name:'再生',       desc:'每進一層自動回復 30% 生命' },
+  desperate: { icon:'🩸', name:'背水',       desc:'血量越低攻擊越高（每少 10% 血 +8% 攻）' },
+  skill:     { icon:'🃏', name:'妙手',       desc:'每層自動獲得 1 張跳題卡' },
+  firstkill: { icon:'🗡️', name:'首題秒殺',   desc:'每層第一題答對直接秒殺當前怪' },
 };
 
 // 角色特殊能力參數（隨機觸發機率 / 倍率集中於此，方便調整與測試）
@@ -1147,6 +1151,10 @@ const Game = {
     if (this.hasBuff('glass'))   m *= 2;
     if (this.hasBuff('onelife')) m *= 5;
     if (this.hasBuff('hphigh'))  m *= (this.player.hp >= this.player.maxHp) ? 1.15 : 0.70;
+    if (this.hasBuff('desperate')) {   // 背水：每少 10% 血 +8% 攻（已損失血量比例分檔）
+      const lost = Math.max(0, (this.player.maxHp - this.player.hp) / this.player.maxHp);
+      m *= 1 + 0.08 * Math.floor(lost / 0.10);
+    }
     return m;
   },
   dmgBuffMul() {
@@ -1207,6 +1215,8 @@ const Game = {
     this.renderBuffLegend();   // 同步右上角增益圖例
   },
   nextQuestion() {
+    this._curIsFirstQ = !this._firstQDone;   // 本題是否為本層第一題（答對後 consumed）
+    this._firstQDone = true;
     this.question = QuestionGen.gen(this.layer, this.practiceType);
     this.answer = '';
     this.updateAnswerPreview();
@@ -1275,6 +1285,11 @@ const Game = {
         this.spawnPopup(this.monsterX() + 10, this.floorY() - this.monster.height*1.15, '連擊 x' + total, '#ff8c00', 26);
         this.impact(70, 8);   // 連擊：強化頓幀 + 震動
       }
+    }
+    if (this.hasBuff('firstkill') && this._curIsFirstQ) {   // 首題秒殺：本層第一題答對直接秒殺當前怪
+      this.monster.currentHp = 0;
+      this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, '秒殺!', '#ff3b3b', 30);
+      this.impact(150, 14);
     }
     if (this.monster.currentHp <= 0) { this.spawnPopup(this.monsterX(), this.floorY() - this.monster.height*1.4, 'K.O.', '#ffcc00', 30); this.impact(150, 14); }   // 擊殺：大震動
     if (this.hasBuff('lifesteal')) {   // 吸血：答對回 5 滴血
@@ -1461,6 +1476,13 @@ const Game = {
   },
   beginLayer() {
     this._firstMissUsed = false;
+    this._firstQDone = false;    // 重置「本層首題」標記
+    // 進層被動增益：再生（回 30% 血）/ 妙手（多 1 張跳題卡）
+    if (this.hasBuff('regen')) {
+      const heal = Math.round(this.player.maxHp * 0.30);
+      if (heal > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + heal);
+    }
+    if (this.hasBuff('skill')) this.player.items.skip = (this.player.items.skip || 0) + 1;
     this.state = 'buffSelect';   // 先暫停戰鬥推進（含 walk 迴圈），避免過場/選增益期間 update 重入 proceedToNext
     this.showStory(() => {                          // 進層先播過場小劇情
       if (this.layer === 1) { this.startBattle(); return; }   // 第 1 層不抽增益，直接開打
