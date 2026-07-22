@@ -1471,7 +1471,7 @@ const Game = {
     });
   },
   showBuffSelect(cb) {
-    const pool = BUFF_IDS.slice();
+    const pool = BUFF_IDS.filter(id => !this.hasBuff(id));   // 排除已擁有，避免重複選到同一增益（效果不疊加，重複只會浪費）
     const picks = [];
     while (picks.length < 3 && pool.length) picks.push(pool.splice(Math.floor(Math.random()*pool.length), 1)[0]);
     const screen = $('buff-select');
@@ -1499,11 +1499,13 @@ const Game = {
     el.innerHTML = '';
     const tip = $('buff-tooltip');
     if (tip) tip.style.display = 'none';
-    this.buffs.forEach(id => {
+    const counts = {};
+    this.buffs.forEach(id => { counts[id] = (counts[id] || 0) + 1; });   // 同一增益合併顯示，避免圖例重複誤導
+    Object.keys(counts).forEach(id => {
       const d = BUFF_DEFS[id];
       const chip = document.createElement('span');
       chip.className = 'buff-chip';
-      chip.textContent = d.icon;
+      chip.textContent = d.icon + (counts[id] > 1 ? '×' + counts[id] : '');
       chip.dataset.id = id;
       chip.addEventListener('click', (e) => {
         e.stopPropagation();
