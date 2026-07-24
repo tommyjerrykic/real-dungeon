@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:,">
 <title>實數地下城</title>
 <style>
   :root {
@@ -266,6 +267,73 @@
     box-shadow: 0 6px 16px rgba(0,0,0,0.55); pointer-events: none;
   }
   #buff-tooltip .bt-name { color: #ffcc00; font-weight: bold; margin-bottom: 4px; }
+
+  /* ===== 冒險地圖 ===== */
+  #map-screen { padding: 0; justify-content: flex-start; }
+  #map-header {
+    position: relative; z-index: 2; width: 100%; padding: 14px 16px 6px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: linear-gradient(180deg, rgba(10,10,16,0.9), rgba(10,10,16,0));
+  }
+  #map-header h1 { font-size: 1.5rem; margin: 0; }
+  #map-header .map-progress { font-size: 0.9rem; color: var(--accent); }
+  #map-wrap { position: relative; flex: 1; width: 100%; min-height: 0; overflow: hidden; }
+  #map-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.55; }
+  #map-paths { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #map-paths polyline {
+    fill: none; stroke: rgba(255,204,0,0.55); stroke-width: 0.7;
+    stroke-dasharray: 2.2 1.6; stroke-linecap: round;
+    filter: drop-shadow(0 0 3px rgba(0,0,0,0.8));
+  }
+  .map-node {
+    position: absolute; transform: translate(-50%, -50%); z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: none; cursor: pointer; padding: 0;
+    font-family: inherit; touch-action: manipulation;
+  }
+  .map-node .node-dot {
+    width: 54px; height: 54px; border-radius: 50%;
+    background-color: rgba(20,24,40,0.92); background-size: cover; background-position: center;
+    border: 3px solid #4a5a7a;
+    color: #e8eefc; font-size: 1.45rem; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    position: relative;
+  }
+  .map-node:hover .node-dot, .map-node:active .node-dot { transform: scale(1.12); border-color: var(--accent); }
+  .map-node.done .node-dot { border-color: var(--accent); box-shadow: 0 0 12px rgba(255,204,0,0.45), 0 4px 10px rgba(0,0,0,0.5); }
+  .map-node .node-star {
+    position: absolute; top: -10px; right: -10px; font-size: 18px;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7));
+  }
+  .map-node .node-name {
+    font-size: 0.78rem; color: #fff; background: rgba(10,10,16,0.75);
+    padding: 2px 8px; border-radius: 8px; white-space: nowrap;
+    text-shadow: 0 1px 2px #000;
+  }
+  .map-node.done .node-name { color: var(--accent); }
+  /* 關卡資訊卡 */
+  #node-info {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 3;
+    width: min(420px, 92%); background: rgba(16,18,30,0.97); border: 2px solid var(--accent);
+    border-radius: 14px; padding: 16px 18px; display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.65);
+  }
+  #node-info.show { display: block; animation: bubblePop .22s ease; }
+  #node-info .ni-title { font-size: 1.2rem; font-weight: bold; color: var(--accent); display: flex; justify-content: space-between; align-items: center; }
+  #node-info .ni-close { cursor: pointer; color: var(--muted); font-size: 1rem; padding: 2px 6px; }
+  #node-info .ni-close:hover { color: #fff; }
+  #node-info .ni-desc { color: #c8d2e4; font-size: 0.92rem; margin: 8px 0; line-height: 1.5; }
+  #node-info .ni-meta { font-size: 0.82rem; color: var(--muted); line-height: 1.7; margin-bottom: 10px; }
+  #node-info .ni-meta b { color: #e8eefc; }
+  #node-info .ni-state { color: var(--accent); }
+  #node-info .btn { margin-top: 4px; width: 100%; padding: 12px 0; }
+  @media (max-width: 480px) {
+    .map-node .node-dot { width: 44px; height: 44px; font-size: 1.15rem; }
+    .map-node .node-name { font-size: 0.68rem; }
+    #map-header h1 { font-size: 1.2rem; }
+  }
 </style>
 </head>
 <body>
@@ -285,7 +353,7 @@
   <p id="actor-label" style="font-size:0.8rem; color:#aaa; margin-top:4px;">當前角色：劍士</p>
   <button class="btn mini" id="difficulty-btn">難度</button>
   <p id="difficulty-label" style="font-size:0.8rem; color:#aaa; margin-top:4px;">當前難度：普通</p>
-  <button class="btn mini" id="practice-btn">練習模式</button>
+  <button class="btn mini" id="map-btn">🗺️ 冒險地圖</button>
 </div>
 
 <!-- GAME OVER -->
@@ -334,6 +402,26 @@
     <button class="opt" data-ptype="t10">分母有理化</button>
   </div>
   <button class="btn" id="practice-back">返回</button>
+</div>
+
+<!-- ADVENTURE MAP -->
+<div id="map-screen" class="screen" style="display:none; z-index:250;">
+  <div id="map-header">
+    <h1>🗺️ 冒險地圖</h1>
+    <span class="map-progress" id="map-progress"></span>
+    <button class="btn mini" id="map-back" style="margin-top:0;">返回</button>
+  </div>
+  <div id="map-wrap">
+    <img id="map-bg" src="assets/bg/layer1.png" alt="">
+    <svg id="map-paths" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+    <!-- 節點由 JS 依 MAP_NODES 產生 -->
+    <div id="node-info">
+      <div class="ni-title"><span id="ni-name"></span><span class="ni-close" id="ni-close">✕</span></div>
+      <div class="ni-desc" id="ni-desc"></div>
+      <div class="ni-meta" id="ni-meta"></div>
+      <button class="btn" id="ni-start">開始挑戰 ⚔️</button>
+    </div>
+  </div>
 </div>
 
 <!-- ACTOR SELECT -->
@@ -427,6 +515,7 @@
   <button id="fs-btn" class="top-btn" title="全屏 / 退出全屏" aria-label="全屏">⛶</button>
 </div>
 
+<script src="questions.js"></script>
 <script>
 /* =========================================================
    實數地下城 - 單一 HTML 遊戲
@@ -1091,6 +1180,9 @@ const Game = {
   best: 0,
   mode: 'campaign',
   practiceType: null,
+  mapNode: null,           // 冒險地圖：當前關卡節點（MAP_NODES 中的一項）
+  mapQueue: [],            // 冒險地圖：本關自訂題待出佇列（打亂後依序出）
+  mapLayers: [],           // 冒險地圖：依節點生成的單層關卡
   difficulty: 'normal',
   bgScroll: 0,
   walkElapsed: 0,
@@ -1180,9 +1272,9 @@ const Game = {
     const mul = (1 - this.actor.def) * this.dmgBuffMul();   // 實際承受傷害倍率
     return Math.round((1 - mul) * 100);                       // 轉為「減傷百分比」顯示
   },
-  currentMonsterType() { return this.activeLayers()[this.layer-1].monsters[this.monsterIdx]; },
-  currentLayerTotal() { return this.activeLayers()[this.layer-1].monsters.length; },
-  activeLayers() { return this.mode === 'practice' ? this.practiceLayers : LAYERS; },
+  currentMonsterType() { const L = this.activeLayers()[this.layer-1]; return L ? L.monsters[this.monsterIdx] : 'goblin'; },
+  currentLayerTotal() { const L = this.activeLayers()[this.layer-1]; return L ? L.monsters.length : 0; },
+  activeLayers() { return this.mode === 'practice' ? this.practiceLayers : (this.mode === 'map' ? this.mapLayers : LAYERS); },
   startBattle() {
     const typeName = this.currentMonsterType();
     const cfg = ASSETS.monsters.find(m => m.name === typeName);
@@ -1217,7 +1309,8 @@ const Game = {
   nextQuestion() {
     this._curIsFirstQ = !this._firstQDone;   // 本題是否為本層第一題（答對後 consumed）
     this._firstQDone = true;
-    this.question = QuestionGen.gen(this.layer, this.practiceType);
+    if (this.mode === 'map' && this.mapNode) this.question = this.nextMapQuestion();
+    else this.question = QuestionGen.gen(this.layer, this.practiceType);
     this.answer = '';
     this.updateAnswerPreview();
     this.showSpeech(this.question.text);
@@ -1225,6 +1318,25 @@ const Game = {
     const kb = $('keypad');
     if (kb) { kb.style.display = ''; kb.classList.toggle('cmp-mode', this.question.type === 'cmp'); } // 復原鍵盤；比較題才顯示 > < 鍵
     const cb = $('continue-btn'); if (cb) cb.style.display = 'none';
+  },
+  // 冒險地圖出題：優先把節點自訂題打亂出完一輪；出完後有 genType 就用隨機題補，
+  // 沒有 genType 就把自訂題重新打亂再出（題目循環）
+  nextMapQuestion() {
+    const node = this.mapNode;
+    const customs = node.questions || [];
+    if (this.mapQueue.length) return toGameQuestion(this.mapQueue.shift());
+    if (this._mapQueueDone && node.genType && QuestionGen[node.genType]) return QuestionGen[node.genType]();
+    if (customs.length) {
+      this.mapQueue = customs.slice();
+      for (let i = this.mapQueue.length - 1; i > 0; i--) {   // Fisher-Yates 打亂
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = this.mapQueue[i]; this.mapQueue[i] = this.mapQueue[j]; this.mapQueue[j] = t;
+      }
+      this._mapQueueDone = true;
+      return toGameQuestion(this.mapQueue.shift());
+    }
+    if (node.genType && QuestionGen[node.genType]) return QuestionGen[node.genType]();
+    return QuestionGen.t1();   // 設定缺漏時保底
   },
   showSpeech(text) {
     const el = $('speech-bubble');
@@ -1477,6 +1589,10 @@ const Game = {
   beginLayer() {
     this._firstMissUsed = false;
     this._firstQDone = false;    // 重置「本層首題」標記
+    if (this.mode === 'map') {   // 冒險地圖關卡：單層、無劇情與增益三選一，直接開打
+      this.startBattle();
+      return;
+    }
     // 進層被動增益：再生（回 30% 血）/ 妙手（多 1 張跳題卡）
     if (this.hasBuff('regen')) {
       const heal = Math.round(this.player.maxHp * 0.30);
@@ -1562,6 +1678,8 @@ const Game = {
       this.monsterIdx = 0;
       if (this.mode === 'practice') {
         if (this.layer > this.practiceLayers.length) { this.victory('練習完成！'); return; }
+      } else if (this.mode === 'map') {
+        if (this.layer > this.mapLayers.length) { this.victory(); return; }   // 單層關卡，打完即通關
       } else {
         this.player.items.skip++;
         if (this.layer > LAYERS.length) { this.victory(); return; }
@@ -1646,6 +1764,7 @@ const Game = {
     revealScreen('gameover-screen');
     const sk = $('gameover-skull'); sk.classList.remove('show'); void sk.offsetWidth; sk.classList.add('show');
     flashRed();
+    const rt = $('retry-btn'); if (rt) rt.textContent = this.mode === 'map' ? '重新挑戰本關' : '重新挑戰';
     $('gameover-msg').innerHTML = `你到達了第 ${this.layer} 層，擊敗了 ${this.totalDefeated()} 隻怪物。<br>最佳紀錄：${this.best} 分`;
   },
   victory(msg) {
@@ -1653,10 +1772,12 @@ const Game = {
     this.saveBest();
     this.state = 'victory';
     this.hideCoach();
-    $('victory-title').textContent = this.mode === 'practice' ? '🏆 練習完成！' : '🏆 通關！';
+    if (this.mode === 'map' && this.mapNode) MapProgress.markDone(this.mapNode.id);   // 冒險地圖：記錄通關
+    $('victory-title').textContent = this.mode === 'practice' ? '🏆 練習完成！' : (this.mode === 'map' ? '🏆 關卡完成！' : '🏆 通關！');
     revealScreen('victory-screen');
     VictoryFx.start();
-    const head = msg ? msg + '<br>' : (this.mode === 'practice' ? '你完成了這個題型的練習。<br>' : '你成功打敗了地下城的所有怪物。<br>');
+    const rb = $('restart-btn'); if (rb) rb.textContent = this.mode === 'map' ? '🗺️ 返回地圖' : '再玩一次';
+    const head = msg ? msg + '<br>' : (this.mode === 'practice' ? '你完成了這個題型的練習。<br>' : (this.mode === 'map' ? '你通過了「' + (this.mapNode ? this.mapNode.name : '') + '」。<br>' : '你成功打敗了地下城的所有怪物。<br>'));
     $('victory-stats').innerHTML = head + `總擊敗怪物：${this.totalDefeated()}<br>最佳紀錄：${this.best} 分`;
   },
   totalDefeated() {
@@ -2227,7 +2348,7 @@ document.querySelectorAll('#diff-row .opt').forEach(b => b.addEventListener('cli
   closeDifficultyScreen();
 }));
 function anyOverlayOpen() {
-  return ['difficulty-screen','practice-screen','actor-screen','game-screen','victory-screen','gameover-screen']
+  return ['difficulty-screen','practice-screen','actor-screen','map-screen','game-screen','victory-screen','gameover-screen']
     .some(id => { const el = $(id); return el && el.style.display === 'flex'; });
 }
 function updateTopbar() {
@@ -2242,7 +2363,14 @@ function launch(mode, ptype) {
   Game._booting = true;
   lockClicks();
   AudioSys.unlock();
-  Game.mode = mode; Game.practiceType = ptype; Game.difficulty = selectedDifficulty;
+  Game.mode = mode; Game.practiceType = (mode === 'practice' ? ptype : null); Game.difficulty = selectedDifficulty;
+  if (mode === 'map') {   // 冒險地圖：ptype 為節點 id，依節點設定生成關卡與題庫佇列
+    Game.mapNode = (typeof MAP_NODES !== 'undefined') ? (MAP_NODES.find(n => n.id === ptype) || null) : null;
+    Game.mapQueue = []; Game._mapQueueDone = false;
+    Game.mapLayers = buildMapLayers(Game.mapNode);
+  } else {
+    Game.mapNode = null; Game.mapLayers = []; Game.mapQueue = [];
+  }
   LAYERS = generateLayers();
   loadAssets().then(() => {
     fadeTransition(() => {
@@ -2250,6 +2378,7 @@ function launch(mode, ptype) {
       $('actor-screen').style.display = 'none';
       $('difficulty-screen').style.display = 'none';
       $('practice-screen').style.display = 'none';
+      const ms = $('map-screen'); if (ms) ms.style.display = 'none';
       $('game-screen').style.display = 'flex';
       document.body.classList.add('in-game');
       updateTopbar();
@@ -2257,6 +2386,80 @@ function launch(mode, ptype) {
     });
   });
 }
+/* ---------- 冒險地圖 ---------- */
+const MAP_DEFAULT_POOL = ['goblin','bandit','bat','weasel','pebble'];   // 節點未指定 pool 時的預設小怪
+function buildMapLayers(node) {
+  if (!node) return [{ monsters: ['goblin','goblin','goblin'] }];
+  const count = Math.max(1, node.monsters || 5);
+  const pool = (node.pool && node.pool.length) ? node.pool : MAP_DEFAULT_POOL;
+  const monsters = Array.from({ length: count }, () => pick(pool));
+  if (node.boss) monsters[monsters.length - 1] = node.boss;   // 關底固定 Boss
+  return [{ monsters }];
+}
+// 通關進度（localStorage 持久化，key = 節點 id）
+const MapProgress = {
+  load() { try { return JSON.parse(localStorage.getItem('realDungeonMap') || '{}'); } catch(e) { return {}; } },
+  isDone(id) { return !!this.load()[id]; },
+  markDone(id) { const p = this.load(); p[id] = 1; try { localStorage.setItem('realDungeonMap', JSON.stringify(p)); } catch(e){} },
+  doneCount() { const p = this.load(); return Object.keys(p).filter(k => p[k]).length; }
+};
+const MAP_TYPE_NAMES = { t1:'平方根', t2:'立方根', t3:'化簡根式', t4:'同類合併', t5:'根式乘法', t6:'化簡混合', t7:'負數根式', t8:'兩步混合', t9:'比較大小', t10:'分母有理化' };
+const MapScreen = {
+  currentNode: null,
+  open() {
+    lockClicks();
+    if (typeof MAP_NODES === 'undefined' || !MAP_NODES.length) return;   // questions.js 缺失時不開啟
+    this.render();
+    $('map-screen').style.display = 'flex';
+    updateTopbar();
+  },
+  close() { lockClicks(); this.hideInfo(); $('map-screen').style.display = 'none'; updateTopbar(); },
+  render() {
+    const wrap = $('map-wrap');
+    wrap.querySelectorAll('.map-node').forEach(el => el.remove());
+    const svg = $('map-paths');   // 依節點順序畫出虛線路徑
+    svg.innerHTML = '';
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    line.setAttribute('points', MAP_NODES.map(n => n.x + ',' + n.y).join(' '));
+    svg.appendChild(line);
+    MAP_NODES.forEach(n => {
+      const done = MapProgress.isDone(n.id);
+      const btn = document.createElement('button');
+      btn.className = 'map-node' + (done ? ' done' : '');
+      btn.style.left = n.x + '%';
+      btn.style.top = n.y + '%';
+      const imgNum = Math.min(7, Math.max(1, n.img || 1));   // 節點圖例：闖關模式第 img 層背景圖
+      btn.innerHTML = '<span class="node-dot" style="background-image:url(\'assets/bg/layer' + imgNum + '.png\')">' +
+        (done ? '<span class="node-star">⭐</span>' : '') +
+        '</span><span class="node-name">' + n.name + '</span>';
+      btn.addEventListener('click', () => this.showInfo(n));
+      wrap.appendChild(btn);
+    });
+    $('map-progress').textContent = '已通關 ' + MapProgress.doneCount() + ' / ' + MAP_NODES.length;
+  },
+  showInfo(n) {
+    this.currentNode = n;
+    $('ni-name').textContent = n.icon + ' ' + n.name;
+    $('ni-desc').textContent = n.desc || '';
+    const qCount = (n.questions || []).length;
+    const qParts = [];
+    if (qCount) qParts.push('自訂題 ' + qCount + ' 題');
+    if (n.genType) qParts.push('隨機「' + (MAP_TYPE_NAMES[n.genType] || n.genType) + '」');
+    $('ni-meta').innerHTML =
+      '怪物：<b>' + Math.max(1, n.monsters || 5) + ' 隻</b>' + (n.boss ? '（關底 Boss）' : '') + '<br>' +
+      '題目：<b>' + (qParts.join('＋') || '隨機題') + '</b><br>' +
+      '狀態：' + (MapProgress.isDone(n.id) ? '<span class="ni-state">⭐ 已通關</span>' : '未通關');
+    $('node-info').classList.add('show');
+  },
+  hideInfo() { const el = $('node-info'); if (el) el.classList.remove('show'); this.currentNode = null; },
+  startCurrent() {
+    if (!this.currentNode) return;
+    const id = this.currentNode.id;
+    this.hideInfo();
+    launch('map', id);
+  }
+};
+
 function updateActorLabel() {
   const actor = getSelectedActor();
   const el = $('actor-label');
@@ -2310,8 +2513,14 @@ function closeActorScreen() { lockClicks(); $('actor-screen').style.display = 'n
 const cc = $('coach-close'); if (cc) cc.addEventListener('click', () => Game.hideCoach());
 $('start-btn').addEventListener('click', () => launch('campaign', null));
 document.querySelectorAll('#ptype-row .opt').forEach(b => b.addEventListener('click', () => { closePracticeScreen(); launch('practice', b.dataset.ptype); }));
-$('retry-btn').addEventListener('click', () => location.reload());
-$('restart-btn').addEventListener('click', () => location.reload());
+$('retry-btn').addEventListener('click', () => {
+  if (Game.mode === 'map' && Game.mapNode) { try { sessionStorage.setItem('rdRetryNode', Game.mapNode.id); } catch(e){} }
+  location.reload();
+});
+$('restart-btn').addEventListener('click', () => {
+  if (Game.mode === 'map') { try { sessionStorage.setItem('rdBackToMap', '1'); } catch(e){} }
+  location.reload();
+});
 function openDifficultyScreen() {
   lockClicks();
   document.querySelectorAll('#diff-row .opt').forEach(x => x.classList.toggle('selected', x.dataset.diff === selectedDifficulty));
@@ -2330,6 +2539,10 @@ const dbtn = $('difficulty-btn'); if (dbtn) dbtn.addEventListener('click', openD
 const dback = $('difficulty-back'); if (dback) dback.addEventListener('click', closeDifficultyScreen);
 const pbtn = $('practice-btn'); if (pbtn) pbtn.addEventListener('click', openPracticeScreen);
 const pback = $('practice-back'); if (pback) pback.addEventListener('click', closePracticeScreen);
+const mapBtn = $('map-btn'); if (mapBtn) mapBtn.addEventListener('click', () => MapScreen.open());
+const mapBack = $('map-back'); if (mapBack) mapBack.addEventListener('click', () => MapScreen.close());
+const niClose = $('ni-close'); if (niClose) niClose.addEventListener('click', () => MapScreen.hideInfo());
+const niStart = $('ni-start'); if (niStart) niStart.addEventListener('click', () => MapScreen.startCurrent());
 const abtn = $('actor-btn'); if (abtn) abtn.addEventListener('click', openActorScreen);
 const topMute = $('mute-btn');
 if (topMute) topMute.addEventListener('click', () => {
@@ -2365,6 +2578,9 @@ let clickLockUntil = 0;
 function lockClicks(ms) { clickLockUntil = performance.now() + (ms || 350); }
 document.addEventListener('click', (e) => {
   if (performance.now() < clickLockUntil) {
+    /* 鍵盤按鍵不吞：按「繼續」後鎖定期間鍵盤已顯示，
+       若吞掉會吃掉學生答題的第一個字（尤其根式開頭係數），造成误判 */
+    if (e.target && e.target.closest && e.target.closest('#keypad')) return;
     e.stopPropagation();
     e.preventDefault();
   }
@@ -2374,6 +2590,13 @@ document.addEventListener('click', (e) => {
 updateActorLabel();
 updateDifficultyLabel();
 updateTopbar();
+
+/* 冒險地圖流程恢復：通關後「返回地圖」/ 失敗後「重新挑戰本關」經 location.reload() 回到這裡 */
+try {
+  const retryNode = sessionStorage.getItem('rdRetryNode');
+  if (retryNode) { sessionStorage.removeItem('rdRetryNode'); launch('map', retryNode); }
+  else if (sessionStorage.getItem('rdBackToMap')) { sessionStorage.removeItem('rdBackToMap'); MapScreen.open(); }
+} catch(e) {}
 
 /* ---------- 隱藏測試模式（僅開發者用，玩家不受影響） ----------
    啟用方式：網址加上 ?debug=1  或  #debug
